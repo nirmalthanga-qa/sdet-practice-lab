@@ -1,31 +1,12 @@
+import { Link, Route, Routes } from 'react-router';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import HomePage from './pages/HomePage';
+import ShopPage from './pages/ShopPage';
+import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
 import './App.css';
-
-const learningTracks = [
-  {
-    number: '01',
-    title: 'Practice Shop',
-    description:
-      'Explore a shopping application built for hands-on UI and API testing.',
-  },
-  {
-    number: '02',
-    title: 'Learning Hub',
-    description:
-      'Learn TypeScript, Playwright, accessibility, APIs and performance testing.',
-  },
-  {
-    number: '03',
-    title: 'CI/CD & Cloud',
-    description:
-      'Connect Git, GitHub Actions, Docker and Azure to your testing workflow.',
-  },
-  {
-    number: '04',
-    title: 'AI SDET Lab',
-    description:
-      'Build toward AI agents, Playwright MCP and Jira-to-test workflows.',
-  },
-];
+import ProductDetailsPage from './pages/ProductDetailsPage';
 
 function App() {
   return (
@@ -34,69 +15,37 @@ function App() {
         Skip to main content
       </a>
 
-      <header className="site-header">
-        <a className="brand" href="/" aria-label="SDET Practice Lab home">
-          <span className="brand-icon" aria-hidden="true">
-            {'</>'}
-          </span>
-
-          <span>SDET Practice Lab</span>
-        </a>
-
-        <span className="project-status">Building step by step</span>
-      </header>
+      <Header />
 
       <main id="main-content">
-        <section className="hero" aria-labelledby="hero-title">
-          <p className="eyebrow">LEARN. PRACTISE. AUTOMATE.</p>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/shop" element={<ShopPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route
+            path="/shop/:productId"
+            element={<ProductDetailsPage />}
+          />
 
-          <h1 id="hero-title">
-            Build confidence.
-            <br />
-            <span>Engineer quality.</span>
-          </h1>
-
-          <p className="hero-description">
-            A hands-on space to learn quality engineering—from your first
-            TypeScript function to reliable automation and AI-driven testing.
-          </p>
-
-          <a className="primary-link" href="#learning-tracks">
-            Explore the learning tracks
-            <span aria-hidden="true"> →</span>
-          </a>
-        </section>
-
-        <section
-          id="learning-tracks"
-          className="tracks-section"
-          aria-labelledby="tracks-title"
-        >
-          <div className="section-heading">
-            <p className="eyebrow">OUR PROJECT ROADMAP</p>
-            <h2 id="tracks-title">Four spaces. One learning journey.</h2>
-            <p>We’ll build each area together, one working feature at a time.</p>
-          </div>
-
-          <div className="tracks-grid">
-            {learningTracks.map((track) => (
-              <article className="track-card" key={track.number}>
-                <span className="track-number" aria-hidden="true">
-                  {track.number}
-                </span>
-
-                <h3>{track.title}</h3>
-                <p>{track.description}</p>
-                <span className="track-status">Planned</span>
-              </article>
-            ))}
-          </div>
-        </section>
+          <Route
+            path="*"
+            element={
+              <section className="hero">
+                <h1>Page not found</h1>
+                <p className="hero-description">
+                  That page doesn’t exist. Let’s head back home.
+                </p>
+                <Link className="primary-link" to="/">
+                  Back to home
+                </Link>
+              </section>
+            }
+          />
+        </Routes>
       </main>
 
-      <footer className="site-footer">
-        <p>SDET Practice Lab · Learn by building. Improve by testing.</p>
-      </footer>
+      <Footer />
     </>
   );
 }
