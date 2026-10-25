@@ -3,14 +3,8 @@ import type { FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useCart } from '../hooks/useCart';
 import OrderSummary from '../components/OrderSummary';
-
-type DeliveryDetails = {
-  fullName: string;
-  email: string;
-  address: string;
-  city: string;
-  postalCode: string;
-};
+import DeliveryReview from '../components/DeliveryReview';
+import type { DeliveryDetails } from '../types/delivery';
 
 type DeliveryErrors = Partial<Record<keyof DeliveryDetails, string>>;
 
@@ -68,6 +62,8 @@ export default function CheckoutPage() {
   const [errors, setErrors] = useState<DeliveryErrors>({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [message, setMessage] = useState('');
+  const [reviewedDetails, setReviewedDetails] =
+    useState<DeliveryDetails | null>(null);
 
   function updateField(field: keyof DeliveryDetails, value: string) {
     const updatedDetails = {
@@ -77,6 +73,7 @@ export default function CheckoutPage() {
 
     setDetails(updatedDetails);
     setMessage('');
+    setReviewedDetails(null);
 
     if (hasSubmitted) {
       setErrors(validateDetails(updatedDetails));
@@ -92,6 +89,7 @@ export default function CheckoutPage() {
     setErrors(validationErrors);
     setHasSubmitted(true);
     setMessage('');
+    setReviewedDetails(null);
 
     const firstInvalidField = fieldOrder.find(
       (field) => validationErrors[field],
@@ -109,6 +107,14 @@ export default function CheckoutPage() {
 
       return;
     }
+
+    setReviewedDetails({
+      fullName: details.fullName.trim(),
+      email: details.email.trim(),
+      address: details.address.trim(),
+      city: details.city.trim(),
+      postalCode: details.postalCode.trim(),
+    });
 
     setMessage(
       'Delivery details validated. No order has been placed yet.',
@@ -194,7 +200,9 @@ export default function CheckoutPage() {
               maxLength={254}
               value={details.email}
               aria-invalid={Boolean(errors.email)}
-              aria-describedby={errors.email ? 'email-error' : undefined}
+              aria-describedby={
+                errors.email ? 'email-error' : undefined
+              }
               onChange={(event) =>
                 updateField('email', event.target.value)
               }
@@ -246,7 +254,9 @@ export default function CheckoutPage() {
               maxLength={100}
               value={details.city}
               aria-invalid={Boolean(errors.city)}
-              aria-describedby={errors.city ? 'city-error' : undefined}
+              aria-describedby={
+                errors.city ? 'city-error' : undefined
+              }
               onChange={(event) =>
                 updateField('city', event.target.value)
               }
@@ -308,6 +318,10 @@ export default function CheckoutPage() {
           >
             {message}
           </p>
+
+          {reviewedDetails && (
+            <DeliveryReview details={reviewedDetails} />
+          )}
         </form>
 
         <OrderSummary />

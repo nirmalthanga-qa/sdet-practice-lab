@@ -37,11 +37,6 @@ export default function CartPage() {
                 onRemove={removeFromCart}
                 onClear={clearCart}
             />
-            {cartCount > 0 && (
-                <Link className="primary-link checkout-link" to="/checkout">
-                    Proceed to checkout
-                </Link>
-            )}
         </section>
     );
 }

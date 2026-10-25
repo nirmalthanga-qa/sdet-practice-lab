@@ -171,3 +171,41 @@ test('user can correct an invalid email and validate delivery details', async ({
     await expect(checkoutPage.emailError).toBeVisible();
   });
 });
+
+test('delivery review updates only after details are validated again', async ({
+  checkoutPage,
+}) => {
+  await expect(checkoutPage.deliveryReview).toHaveCount(0);
+
+  await checkoutPage.fillDeliveryDetails(validDetails);
+  await checkoutPage.submitDeliveryDetails();
+
+  await expect(checkoutPage.deliveryReview).toBeVisible();
+
+  for (const value of Object.values(validDetails)) {
+    await expect(
+      checkoutPage.deliveryReview.getByText(value, { exact: true }),
+    ).toBeVisible();
+  }
+
+  await checkoutPage.cityInput.fill('Chennai');
+
+  await expect(checkoutPage.deliveryReview).toHaveCount(0);
+  await expect(checkoutPage.successMessage).not.toBeVisible();
+
+  await checkoutPage.submitDeliveryDetails();
+
+  await expect(checkoutPage.deliveryReview).toBeVisible();
+
+  await expect(
+    checkoutPage.deliveryReview.getByText('Chennai', { exact: true }),
+  ).toBeVisible();
+
+  await expect(
+    checkoutPage.deliveryReview.getByText(validDetails.city, {
+      exact: true,
+    }),
+  ).toHaveCount(0);
+
+  await expect(checkoutPage.successMessage).toBeVisible();
+});

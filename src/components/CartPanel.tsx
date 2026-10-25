@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { Product } from '../types/product';
+import { Link } from 'react-router';
 
 type CartPanelProps = {
   items: {
@@ -118,13 +119,19 @@ export default function CartPanel({
             </strong>
           </p>
 
-          <button
-            className="clear-cart-button"
-            type="button"
-            onClick={() => dialogRef.current?.showModal()}
-          >
-            Clear cart
-          </button>
+          <div className="cart-actions">
+            <Link className="primary-link checkout-link" to="/checkout">
+              Proceed to checkout
+            </Link>
+
+            <button
+              className="clear-cart-button"
+              type="button"
+              onClick={() => dialogRef.current?.showModal()}
+            >
+              Clear cart
+            </button>
+          </div>
         </>
       )}
 

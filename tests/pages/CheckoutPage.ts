@@ -22,6 +22,7 @@ export class CheckoutPage {
   readonly cityError: Locator;
   readonly postalCodeError: Locator;
   readonly successMessage: Locator;
+  readonly deliveryReview: Locator;
 
   constructor(page: Page) {
     this.fullNameInput = page.getByRole('textbox', {
@@ -64,6 +65,11 @@ export class CheckoutPage {
       'Delivery details validated. No order has been placed yet.',
       { exact: true },
     );
+
+    this.deliveryReview = page.getByRole('region', {
+  name: 'Review your delivery details',
+  exact: true,
+});
   }
 
   async fillDeliveryDetails(details: DeliveryDetails) {
