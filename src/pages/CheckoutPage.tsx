@@ -55,7 +55,103 @@ function validateDetails(details: DeliveryDetails): DeliveryErrors {
 }
 
 export default function CheckoutPage() {
-  const { cartCount } = useCart();
+  const {
+    cartCount,
+    catalogueState,
+    retryCatalogue,
+    canCheckout,
+  } = useCart();
+
+  if (cartCount === 0) {
+    return (
+      <section
+        className="shop-section"
+        aria-labelledby="empty-checkout-title"
+      >
+        <h1 id="empty-checkout-title">Your cart is empty</h1>
+
+        <p className="hero-description">
+          Add a product before starting checkout.
+        </p>
+
+        <Link className="primary-link" to="/shop">
+          Explore the shop
+        </Link>
+      </section>
+    );
+  }
+
+  if (catalogueState.status === 'loading') {
+    return (
+      <section
+        className="shop-section"
+        aria-labelledby="checkout-loading-title"
+      >
+        <Link className="back-to-shop" to="/cart">
+          ← Back to cart
+        </Link>
+
+        <h1 id="checkout-loading-title">Preparing checkout</h1>
+
+        <p role="status" aria-atomic="true">
+          Loading cart prices and availability…
+        </p>
+      </section>
+    );
+  }
+
+  if (catalogueState.status === 'error') {
+    return (
+      <section
+        className="shop-section"
+        aria-labelledby="checkout-error-title"
+      >
+        <Link className="back-to-shop" to="/cart">
+          ← Back to cart
+        </Link>
+
+        <h1 id="checkout-error-title">Unable to load checkout</h1>
+
+        <p role="alert">{catalogueState.message}</p>
+
+        <p>Your saved cart items have been kept.</p>
+
+        <button
+          className="primary-link"
+          type="button"
+          onClick={retryCatalogue}
+        >
+          Try again
+        </button>
+      </section>
+    );
+  }
+
+  if (!canCheckout) {
+    return (
+      <section
+        className="shop-section"
+        aria-labelledby="checkout-blocked-title"
+      >
+        <h1 id="checkout-blocked-title">Your cart needs attention</h1>
+
+        <p role="alert">
+          Some products are unavailable or exceed current stock.
+          Update your cart before continuing.
+        </p>
+
+        <Link className="primary-link" to="/cart">
+          Review your cart
+        </Link>
+      </section>
+    );
+  }
+
+  return <CheckoutForm />;
+}
+
+function CheckoutForm() {
+  const { canCheckout } = useCart();
 
   const [details, setDetails] =
     useState<DeliveryDetails>(initialDetails);
@@ -83,13 +179,18 @@ export default function CheckoutPage() {
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    setMessage('');
+    setReviewedDetails(null);
+
+    if (!canCheckout) {
+      return;
+    }
+
     const form = event.currentTarget;
     const validationErrors = validateDetails(details);
 
     setErrors(validationErrors);
     setHasSubmitted(true);
-    setMessage('');
-    setReviewedDetails(null);
 
     const firstInvalidField = fieldOrder.find(
       (field) => validationErrors[field],
@@ -118,22 +219,6 @@ export default function CheckoutPage() {
 
     setMessage(
       'Delivery details validated. No order has been placed yet.',
-    );
-  }
-
-  if (cartCount === 0) {
-    return (
-      <section className="shop-section">
-        <h1>Your cart is empty</h1>
-
-        <p className="hero-description">
-          Add a product before starting checkout.
-        </p>
-
-        <Link className="primary-link" to="/shop">
-          Explore the shop
-        </Link>
-      </section>
     );
   }
 
@@ -307,6 +392,7 @@ export default function CheckoutPage() {
           <button
             className="primary-link checkout-submit"
             type="submit"
+            disabled={!canCheckout}
           >
             Validate delivery details
           </button>

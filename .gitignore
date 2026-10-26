@@ -30,3 +30,7 @@ dist-ssr
 # Playwright test artifacts
 playwright-report/
 test-results/
+/server/src/generated/prisma/
+.agents/
+.claude/
+.windsurf/

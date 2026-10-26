@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { products } from '../data/products';
 
 type CartItem = {
   productId: string;
@@ -30,33 +29,26 @@ function loadCart(): CartItem[] {
         typeof item !== 'object' ||
         item === null ||
         !('productId' in item) ||
-        !('quantity' in item) ||
         typeof item.productId !== 'string' ||
+        item.productId.trim() === '' ||
+        !('quantity' in item) ||
         typeof item.quantity !== 'number' ||
-        !Number.isInteger(item.quantity) ||
+        !Number.isSafeInteger(item.quantity) ||
         item.quantity < 1
       ) {
         continue;
       }
 
-      const product = products.find(
-        (product) => product.id === item.productId,
-      );
-
-      if (
-        !product ||
-        product.stock === 0 ||
-        seenProductIds.has(product.id)
-      ) {
+      if (seenProductIds.has(item.productId)) {
         continue;
       }
 
       validItems.push({
-        productId: product.id,
-        quantity: Math.min(item.quantity, product.stock),
+        productId: item.productId,
+        quantity: item.quantity,
       });
 
-      seenProductIds.add(product.id);
+      seenProductIds.add(item.productId);
     }
 
     return validItems;
@@ -65,8 +57,8 @@ function loadCart(): CartItem[] {
   }
 }
 
-export function useStoredCart() 
-{  const [cartItems, setCartItems] = useState<CartItem[]>(loadCart);
+export function useStoredCart() {
+  const [cartItems, setCartItems] = useState<CartItem[]>(loadCart);
 
   useEffect(() => {
     try {

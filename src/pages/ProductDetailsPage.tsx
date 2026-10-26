@@ -3,17 +3,13 @@ import { Link, useParams } from 'react-router';
 import { useCart } from '../hooks/useCart';
 import type { Product } from '../types/product';
 import { isProduct } from '../utils/isProduct';
+import ProductPurchaseControls from '../components/ProductPurchaseControls';
 
 type ProductState =
   | { status: 'loading' }
   | { status: 'success'; product: Product }
   | { status: 'not-found' }
   | { status: 'error'; message: string };
-
-const currencyFormatter = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
-});
 
 function ProductNotFound() {
   return (
@@ -161,19 +157,10 @@ function ProductDetails({ productId }: { productId: string }) {
     );
   }
 
-  const { product } = productState;
+    const { product } = productState;
 
   const quantityInCart =
     cartItems.find((item) => item.productId === product.id)?.quantity ?? 0;
-
-  const isInStock = product.stock > 0;
-  const reachedStockLimit = quantityInCart >= product.stock;
-
-  const buttonLabel = !isInStock
-    ? 'Out of stock'
-    : reachedStockLimit
-      ? 'Stock limit reached'
-      : 'Add to cart';
 
   return (
     <section
@@ -196,45 +183,15 @@ function ProductDetails({ productId }: { productId: string }) {
 
           <p className="product-description">{product.description}</p>
 
-          <p
-            className={`product-stock ${
-              isInStock
-                ? 'product-stock-available'
-                : 'product-stock-empty'
-            }`}
-          >
-            {!isInStock
-              ? 'Out of stock'
-              : reachedStockLimit
-                ? `All ${product.stock} available units are in your cart`
-                : `${product.stock} available · ${quantityInCart} in your cart`}
-          </p>
-
-          <p className="product-price">
-            {currencyFormatter.format(product.pricePaise / 100)}
-          </p>
-
           <p className="sample-data-note">
             Product ID: {product.id}
           </p>
 
-          <button
-            className="add-to-cart-button"
-            type="button"
-            disabled={!isInStock || reachedStockLimit}
-            aria-label={`${buttonLabel}: ${product.name}`}
-            onClick={() => addToCart(product)}
-          >
-            {buttonLabel}
-          </button>
-
-          <p
-            className="product-cart-quantity"
-            role="status"
-            aria-atomic="true"
-          >
-            In your cart: {quantityInCart}
-          </p>
+          <ProductPurchaseControls
+            product={product}
+            quantityInCart={quantityInCart}
+            onAddToCart={addToCart}
+          />
 
           <Link className="primary-link" to="/shop">
             Continue shopping

@@ -1,6 +1,5 @@
 import { useContext } from 'react';
 import { CartContext } from '../context/CartContext';
-import { products } from '../data/products';
 import type { Product } from '../types/product';
 
 export function useCart() {
@@ -10,7 +9,17 @@ export function useCart() {
     throw new Error('useCart must be used inside CartProvider');
   }
 
-  const { cartItems, setCartItems } = cart;
+  const {
+    cartItems,
+    setCartItems,
+    catalogueState,
+    retryCatalogue,
+  } = cart;
+
+  const products =
+    catalogueState.status === 'success'
+      ? catalogueState.products
+      : [];
 
   const cartCount = cartItems.reduce(
     (total, item) => total + item.quantity,
@@ -25,7 +34,36 @@ export function useCart() {
     return product ? [{ product, quantity: item.quantity }] : [];
   });
 
-  function addToCart(product: Product) {
+  const unavailableItems =
+    catalogueState.status === 'success'
+      ? cartItems.filter(
+          (item) =>
+            !products.some(
+              (product) => product.id === item.productId,
+            ),
+        )
+      : [];
+
+  const hasCartIssues =
+    unavailableItems.length > 0 ||
+    cartProducts.some(
+      ({ product, quantity }) => quantity > product.stock,
+    );
+
+  const canCheckout =
+    catalogueState.status === 'success' &&
+    cartItems.length > 0 &&
+    !hasCartIssues;
+
+  function addToCart(requestedProduct: Product) {
+    const product = products.find(
+      (item) => item.id === requestedProduct.id,
+    );
+
+    if (!product || product.stock < 1) {
+      return;
+    }
+
     setCartItems((currentItems) => {
       const existingItem = currentItems.find(
         (item) => item.productId === product.id,
@@ -54,20 +92,35 @@ export function useCart() {
 
     if (
       !product ||
-      !Number.isInteger(quantity) ||
-      quantity < 1 ||
-      quantity > product.stock
+      !Number.isSafeInteger(quantity) ||
+      quantity < 1
     ) {
       return;
     }
 
-    setCartItems((currentItems) =>
-      currentItems.map((item) =>
+    setCartItems((currentItems) => {
+      const currentItem = currentItems.find(
+        (item) => item.productId === productId,
+      );
+
+      if (!currentItem) {
+        return currentItems;
+      }
+
+      // Allow reducing an existing excess quantity one step at a time.
+      if (
+        quantity > product.stock &&
+        quantity >= currentItem.quantity
+      ) {
+        return currentItems;
+      }
+
+      return currentItems.map((item) =>
         item.productId === productId
           ? { ...item, quantity }
           : item,
-      ),
-    );
+      );
+    });
   }
 
   function removeFromCart(productId: string) {
@@ -84,6 +137,11 @@ export function useCart() {
     cartItems,
     cartCount,
     cartProducts,
+    catalogueState,
+    retryCatalogue,
+    unavailableItems,
+    hasCartIssues,
+    canCheckout,
     addToCart,
     updateCartQuantity,
     removeFromCart,
