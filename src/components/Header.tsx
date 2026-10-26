@@ -11,7 +11,10 @@ export default function Header() {
           {'</>'}
         </span>
 
-        <span>SDET Practice Lab</span>
+        <span className="brand-text">
+          <span>SDET Practice Lab</span>
+          <span className="brand-credit">by Nirmal Kumar</span>
+        </span>
       </Link>
 
       <nav className="main-navigation" aria-label="Main navigation">

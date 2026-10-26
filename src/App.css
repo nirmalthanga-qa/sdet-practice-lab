@@ -1059,3 +1059,31 @@ main,
 .cart-actions .clear-cart-button {
   margin-top: 0;
 }
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand-credit {
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: normal;
+}
+
+.developer-credit {
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.developer-credit a {
+  color: #5eead4;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.developer-credit a:hover {
+  color: #99f6e4;
+}

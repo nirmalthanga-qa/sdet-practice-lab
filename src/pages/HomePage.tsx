@@ -1,82 +1,87 @@
+import { Link } from 'react-router';
 import LearningTrackCard from '../components/LearningTrackCard';
 
-const learningTracks = [
+const shoppingFeatures = [
   {
     number: '01',
-    title: 'Practice Shop',
+    title: 'Explore products',
     description:
-      'Explore a shopping application built for hands-on UI and API testing.',
+      'Search everyday essentials, filter by category and availability, and compare prices.',
   },
   {
     number: '02',
-    title: 'Learning Hub',
+    title: 'Build your cart',
     description:
-      'Learn TypeScript, Playwright, accessibility, APIs and performance testing.',
+      'Add your favourites, adjust quantities and review your subtotal before checkout.',
   },
   {
     number: '03',
-    title: 'CI/CD & Cloud',
+    title: 'Try checkout',
     description:
-      'Connect Git, GitHub Actions, Docker and Azure to your testing workflow.',
+      'Practise entering delivery details and reviewing them. Use fictional information.',
   },
   {
     number: '04',
-    title: 'AI SDET Lab',
+    title: 'Coming next',
     description:
-      'Build toward AI agents, Playwright MCP and Jira-to-test workflows.',
+      'Customer accounts, simulated orders and interactive shopping insights are on the way.',
   },
 ];
 
-function HomePage() {
+export default function HomePage() {
   return (
     <>
+      <section className="hero" aria-labelledby="hero-title">
+        <p className="eyebrow">SDET PRACTICE LAB · DEMO SHOP</p>
 
-      <>
-        <section className="hero" aria-labelledby="hero-title">
-          <p className="eyebrow">LEARN. PRACTISE. AUTOMATE.</p>
+        <h1 id="hero-title">
+          Everyday essentials.
+          <br />
+          <span>Explore. Shop. Practise.</span>
+        </h1>
 
-          <h1 id="hero-title">
-            Build confidence.
-            <br />
-            <span>Engineer quality.</span>
-          </h1>
+        <p className="hero-description">
+          Discover workspace and audio essentials in a shopping application
+          built for hands-on quality engineering practice.
+        </p>
 
-          <p className="hero-description">
-            A hands-on space to learn quality engineering—from your first
-            TypeScript function to reliable automation and AI-driven testing.
+        <Link className="primary-link" to="/shop">
+          Explore the shop
+          <span aria-hidden="true"> →</span>
+        </Link>
+
+        <p className="sample-data-note">
+          A portfolio and testing project. No real purchases or payments.
+        </p>
+      </section>
+
+      <section
+        className="tracks-section"
+        aria-labelledby="shopping-features-title"
+      >
+        <div className="section-heading">
+          <p className="eyebrow">EXPLORE THE EXPERIENCE</p>
+
+          <h2 id="shopping-features-title">
+            Your shopping journey starts here.
+          </h2>
+
+          <p>
+            Browse the collection, build your cart and try the delivery form.
           </p>
+        </div>
 
-          <a className="primary-link" href="#learning-tracks">
-            Explore the learning tracks
-            <span aria-hidden="true"> →</span>
-          </a>
-        </section>
-
-        <section
-          id="learning-tracks"
-          className="tracks-section"
-          aria-labelledby="tracks-title"
-        >
-          <div className="section-heading">
-            <p className="eyebrow">OUR PROJECT ROADMAP</p>
-            <h2 id="tracks-title">Four spaces. One learning journey.</h2>
-            <p>We’ll build each area together, one working feature at a time.</p>
-          </div>
-
-          <div className="tracks-grid">
-            {learningTracks.map((track) => (
-              <LearningTrackCard
-                key={track.number}
-                number={track.number}
-                title={track.title}
-                description={track.description}
-              />
-            ))}
-          </div>
-        </section>
-      </>
+        <div className="tracks-grid">
+          {shoppingFeatures.map((feature) => (
+            <LearningTrackCard
+              key={feature.number}
+              number={feature.number}
+              title={feature.title}
+              description={feature.description}
+            />
+          ))}
+        </div>
+      </section>
     </>
   );
 }
-
-export default HomePage;
