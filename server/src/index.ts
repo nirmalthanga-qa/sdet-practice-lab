@@ -7,6 +7,8 @@ import { prisma } from './lib/prisma.js';
 import { authRouter } from './routes/auth.js';
 import { cartRouter } from './routes/cart.js';
 import { ordersRouter } from './routes/orders.js';
+import swaggerUi from 'swagger-ui-express';
+import { openApiDocument } from './docs/openapi.js';
 
 const app = express();
 
@@ -46,6 +48,25 @@ const productSelect = {
 app.disable('x-powered-by');
 app.use(express.json());
 app.use(cookieParser());
+
+app.get('/api/openapi.json', (_request, response) => {
+  response.set('Cache-Control', 'no-store');
+  response.status(200).json(openApiDocument);
+});
+
+app.use(
+  '/api/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openApiDocument, {
+    customSiteTitle: 'SDET Practice Lab API',
+    swaggerOptions: {
+      validatorUrl: null,
+      persistAuthorization: false,
+      withCredentials: true,
+      displayRequestDuration: true,
+    },
+  }),
+);
 
 app.use('/api/auth', authRouter);
 app.use('/api/cart', cartRouter);
