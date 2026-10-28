@@ -21,7 +21,6 @@ export default function ProductPurchaseControls({
     catalogueState,
     retryCatalogue,
     canEditCart,
-    isCartSaving,
   } = useCart();
 
   const cartProduct =
@@ -64,9 +63,7 @@ export default function ProductPurchaseControls({
   const isInStock =
     cartProduct !== undefined && cartProduct.stock > 0;
 
-  const displayedButtonLabel = isCartSaving
-    ? 'Saving cart…'
-    : buttonLabel;
+  const displayedButtonLabel = buttonLabel;
 
   return (
     <>
