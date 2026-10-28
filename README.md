@@ -294,6 +294,47 @@ Refresh the browser afterward. No image rebuild is required.
 
 Speaker and laptop stand intentionally remain out of stock for testing. Newly added products are unaffected unless included in the SQL.
 
+### Restore stock in the live Neon database
+
+The local Docker database and live Neon database are separate.
+Running the Docker stock-reset command does not update the live application.
+
+In your Neon project's SQL Editor, select the branch and database
+used by the Render application.
+
+Run this between testing sessions when nobody is placing orders.
+It sets stock to the original demo quantities; it does not add quantities
+to the existing stock.
+
+```sql
+UPDATE "Product" AS product
+SET "stock" = baseline.stock
+FROM (
+  VALUES
+    ('keyboard', 18),
+    ('headphones', 12),
+    ('speaker', 0),
+    ('mouse', 25),
+    ('monitor', 5),
+    ('desk-lamp', 1),
+    ('laptop-stand', 0),
+    ('microphone', 8),
+    ('earbuds', 15)
+) AS baseline(id, stock)
+WHERE product."id" = baseline.id
+RETURNING product."id", product."name", product."stock";
+```
+
+This preserves users, carts, orders, product prices, and saved receipts.
+Speaker and laptop stand intentionally remain out of stock.
+Products not listed above are unchanged.
+
+Refresh the live application after running the query.
+No rebuild or redeployment is required.
+
+The normal seed command inserts missing products; it does not replenish
+existing stock. Do not reset the database or delete orders to restock products.
+
 ## API overview
 
 Use `/api` on the frontend origin, or `http://127.0.0.1:3001/api` for direct local API requests.
