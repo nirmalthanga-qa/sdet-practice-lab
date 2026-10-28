@@ -21,6 +21,7 @@ export default function ProductPurchaseControls({
     catalogueState,
     retryCatalogue,
     canEditCart,
+    isCartSaving,
   } = useCart();
 
   const cartProduct =
@@ -63,8 +64,6 @@ export default function ProductPurchaseControls({
   const isInStock =
     cartProduct !== undefined && cartProduct.stock > 0;
 
-  const displayedButtonLabel = buttonLabel;
-
   return (
     <>
       <p
@@ -87,14 +86,17 @@ export default function ProductPurchaseControls({
         className="add-to-cart-button"
         type="button"
         disabled={!canAdd || !canEditCart}
-        aria-label={`${displayedButtonLabel}: ${product.name}`}
+        data-cart-saving={
+          isCartSaving && canAdd ? 'true' : undefined
+        }
+        aria-label={`${buttonLabel}: ${product.name}`}
         onClick={() => {
           if (canAdd && canEditCart && cartProduct) {
             onAddToCart(cartProduct);
           }
         }}
       >
-        {displayedButtonLabel}
+        {buttonLabel}
       </button>
 
       {catalogueState.status === 'error' && (

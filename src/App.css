@@ -1585,3 +1585,18 @@ main,
   outline-offset: 4px;
   border-radius: 0.25rem;
 }
+
+.add-to-cart-button:disabled[data-cart-saving='true'] {
+  border-color: #5eead4;
+  color: #0f172a;
+  background: #5eead4;
+  cursor: progress;
+}
+
+.add-to-cart-button:disabled[data-cart-saving='true']:hover {
+  background: #99f6e4;
+}
+
+.cart-save-status {
+  min-height: 1.5em;
+}

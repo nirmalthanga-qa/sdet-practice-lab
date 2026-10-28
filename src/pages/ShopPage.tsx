@@ -52,6 +52,7 @@ export default function ShopPage() {
     cartItems,
     cartCount,
     cartProducts,
+    isCartSaving,
     addToCart,
     updateCartQuantity,
     removeFromCart,
@@ -101,7 +102,6 @@ export default function ShopPage() {
             products: loadedProducts,
           });
 
-          // Remove selections for products no longer in the catalogue.
           setComparisonIds((current) =>
             current.filter((id) => productIds.has(id)),
           );
@@ -127,7 +127,6 @@ export default function ShopPage() {
       ? productsState.products
       : [];
 
-  // Compare using the full catalogue, not just the current page.
   const comparedProducts = comparisonIds.flatMap((productId) => {
     const product = products.find((item) => item.id === productId);
 
@@ -275,6 +274,14 @@ export default function ShopPage() {
           {isCartOpen ? 'Hide cart' : 'View cart'}
         </button>
       </div>
+
+      <p
+        className="cart-save-status"
+        role="status"
+        aria-atomic="true"
+      >
+        {isCartSaving ? 'Updating your cart…' : ''}
+      </p>
 
       <div hidden={!isCartOpen}>
         <CartPanel
