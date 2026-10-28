@@ -6,6 +6,18 @@ Explore products, manage a cart, place simulated orders, and review purchase his
 
 **Demo only:** no real payments are processed and no products are shipped. Use fictional account and delivery information.
 
+## Live application
+
+**[Open SDET Practice Lab](https://sdet-practice-lab.onrender.com/)**
+
+Developed by **Nirmal Kumar**.
+
+Register with fictional details to explore account carts, simulated
+checkout, order history, and purchase visualizations.
+
+The application uses free hosting, so the first request after inactivity
+may take longer to load. No real payments are processed or products shipped.
+
 ## Features
 
 - Product catalogue with search, category filtering, stock filtering, sorting, and a maximum-price slider.
@@ -33,10 +45,11 @@ Explore products, manage a cart, place simulated orders, and review purchase his
 | Database access and migrations | Prisma 7 |
 | Password hashing | Argon2 |
 | Containers | Docker Compose |
-| Frontend server and API proxy | Nginx |
-| Development checks | ESLint, TypeScript, GitHub Actions |
+| Local Docker frontend server and API proxy | Nginx |
+| Live frontend server and API | Express on Render || Development checks | ESLint, TypeScript, GitHub Actions |
 
-Automated UI/API testing and performance testing are a separate phase. The current focus is application development.
+The initial application development and deployment milestone is complete.
+Automated UI/API testing and performance testing are planned in a separate project.
 
 ## Run with Docker
 
@@ -156,7 +169,8 @@ npm ci
 npx prisma generate
 ```
 
-Stop the Docker frontend/API to free port 3001, then start PostgreSQL:
+Stop the Docker frontend/API when switching to local development,
+then start PostgreSQL:
 
 ```bash
 docker compose stop web api
@@ -327,20 +341,52 @@ Postman and the browser have separate cookie stores. Sign in separately when usi
 | --- | --- |
 | Site unreachable | Check `docker compose ps -a`, then run `docker compose up -d --wait web`. |
 | API/web show Created | Inspect the error printed by the startup command. |
-| Port 3001 occupied | Stop the local API before starting Docker API. |
 | Missing DOCKER_DATABASE_URL | Add it to the project-root `.env`. |
 | Seed reports `spawn tsx ENOENT` | Run seeding through `npm exec -- prisma`. |
 | Code changes not visible | Rebuild the Docker images. |
 | Updated stock not visible | Refresh the whole browser page. |
 | Health works but products fail | Check database credentials, migrations, and API logs. |
 
-## Deployment status
+## Deployment
 
-The Compose configuration is a local HTTP setup with loopback-bound ports.
+The application is deployed on Render with PostgreSQL hosted on Neon.
 
-Public deployment still requires HTTPS, secure-cookie configuration, proxy-aware rate limiting, backup procedures, and a deployment review.
+| Component | Deployment |
+| --- | --- |
+| React frontend | Built with Vite and served by Express |
+| Express API | Render web service |
+| PostgreSQL database | Neon |
+| Local container environment | Docker Compose with Nginx |
+| Continuous integration | GitHub Actions |
 
-Keyboard-friendly controls, semantic labels, and table alternatives are included, but this is not a claim of completed accessibility certification.
+The live application uses HTTPS and database-backed sessions with
+Secure, HttpOnly, SameSite=Lax cookies.
+
+The proxy configuration was manually checked against the deployed
+request path, including a request with a supplied X-Forwarded-For header.
+Temporary diagnostic routes were removed after verification.
+
+The final manual walkthrough covered guest shopping, authentication,
+guest-cart transfer, checkout, saved orders, charts, the delivery iframe,
+mobile layout, and keyboard navigation.
+
+These checks are not a claim of a complete security or accessibility audit.
+
+## Testing roadmap
+
+Application development and the initial deployment are complete.
+A separate testing project is planned to cover:
+
+- Playwright UI and API automation with TypeScript.
+- Page objects, reusable fixtures, parameterization, and parallel execution.
+- Accessibility checks with axe-core and manual assistive-technology testing.
+- Postman collections for manual API validation.
+- k6 performance testing against a controlled test environment.
+- Automated test execution and reporting through GitHub Actions.
+- Playwright MCP, CLI, and planner, generator, and healer workflows.
+
+Custom AI agents, LangChain/LangGraph, n8n, Jira integration, and the
+tutorial application are separate future projects.
 
 ## Author
 
