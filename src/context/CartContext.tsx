@@ -1,5 +1,6 @@
 import { createContext } from 'react';
 import type { useStoredCart } from '../hooks/useStoredCart';
+import type { useCustomerCart } from '../hooks/useCustomerCart';
 import type { Product } from '../types/product';
 
 export type CartCatalogueState =
@@ -10,6 +11,8 @@ export type CartCatalogueState =
 type CartContextValue = ReturnType<typeof useStoredCart> & {
   catalogueState: CartCatalogueState;
   retryCatalogue: () => void;
+  customerCart: ReturnType<typeof useCustomerCart> | null;
+  guestCartItems: ReturnType<typeof useStoredCart>['cartItems'];
 };
 
 export const CartContext =

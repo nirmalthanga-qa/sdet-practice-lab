@@ -27,7 +27,7 @@ export default function OrderSummary() {
     >
       <h2 id="order-summary-title">Order summary</h2>
 
-      {cartCount === 0 ? (
+      {cartCount === 0 && catalogueState.status === 'success' ? (
         <p>Your cart is empty.</p>
       ) : catalogueState.status === 'loading' ? (
         <p role="status" aria-atomic="true">

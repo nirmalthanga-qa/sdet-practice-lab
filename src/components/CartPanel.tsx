@@ -8,9 +8,12 @@ type CartPanelProps = {
     product: Product;
     quantity: number;
   }[];
-  onQuantityChange: (productId: string, quantity: number) => void;
-  onRemove: (productId: string) => void;
-  onClear: () => void;
+  onQuantityChange: (
+    productId: string,
+    quantity: number,
+  ) => Promise<boolean>;
+  onRemove: (productId: string) => Promise<boolean>;
+  onClear: () => Promise<boolean>;
 };
 
 const currencyFormatter = new Intl.NumberFormat('en-IN', {
@@ -31,23 +34,30 @@ export default function CartPanel({
     unavailableItems,
     hasCartIssues,
     canCheckout,
+    isCartSaving,
+    canEditCart,
   } = useCart();
 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
-  const isEmpty = cartItems.length === 0;
   const isReady = catalogueState.status === 'success';
+  const isEmpty = isReady && cartItems.length === 0;
 
   const subtotalPaise = items.reduce(
     (total, item) => total + item.product.pricePaise * item.quantity,
     0,
   );
 
-  function confirmClearCart() {
+  async function confirmClearCart() {
+    const cleared = await onClear();
+
+    // Close after completion so any error behind the dialog is visible.
     dialogRef.current?.close();
-    onClear();
-    headingRef.current?.focus();
+
+    if (cleared) {
+      headingRef.current?.focus();
+    }
   }
 
   return (
@@ -60,21 +70,25 @@ export default function CartPanel({
         Your cart
       </h2>
 
+      <p role="status" aria-atomic="true">
+        {isCartSaving
+          ? 'Saving your cart…'
+          : catalogueState.status === 'loading'
+            ? 'Loading cart prices and availability…'
+            : ''}
+      </p>
+
       {isEmpty ? (
         <p>Your cart is empty. Add a product to get started.</p>
       ) : (
         <>
-          <p role="status" aria-atomic="true">
-            {catalogueState.status === 'loading'
-              ? 'Loading cart prices and availability…'
-              : ''}
-          </p>
-
           {catalogueState.status === 'error' && (
             <div className="empty-state">
               <p role="alert">{catalogueState.message}</p>
 
-              <p>Your saved cart items have been kept.</p>
+              <p>
+                Reload your cart to confirm its latest saved contents.
+              </p>
 
               <button
                 className="primary-link"
@@ -128,12 +142,14 @@ export default function CartPanel({
                             type="button"
                             aria-label={`Decrease quantity of ${product.name}`}
                             disabled={
-                              quantity <= 1 || product.stock === 0
+                              !canEditCart ||
+                              quantity <= 1 ||
+                              product.stock === 0
                             }
                             onClick={() =>
                               onQuantityChange(
                                 product.id,
-                                quantity - 1,
+                                Math.min(quantity - 1, product.stock),
                               )
                             }
                           >
@@ -145,7 +161,10 @@ export default function CartPanel({
                           <button
                             type="button"
                             aria-label={`Increase quantity of ${product.name}`}
-                            disabled={quantity >= product.stock}
+                            disabled={
+                              !canEditCart ||
+                              quantity >= product.stock
+                            }
                             onClick={() =>
                               onQuantityChange(
                                 product.id,
@@ -161,6 +180,7 @@ export default function CartPanel({
                           <button
                             className="remove-cart-button"
                             type="button"
+                            disabled={!canEditCart}
                             onClick={() =>
                               onQuantityChange(
                                 product.id,
@@ -176,6 +196,7 @@ export default function CartPanel({
                           className="remove-cart-button"
                           type="button"
                           aria-label={`Remove ${product.name} from cart`}
+                          disabled={!canEditCart}
                           onClick={() => onRemove(product.id)}
                         >
                           Remove
@@ -207,6 +228,7 @@ export default function CartPanel({
                         className="remove-cart-button"
                         type="button"
                         aria-label={`Remove unavailable product ${item.productId} from cart`}
+                        disabled={!canEditCart}
                         onClick={() => onRemove(item.productId)}
                       >
                         Remove
@@ -249,6 +271,7 @@ export default function CartPanel({
             <button
               className="clear-cart-button"
               type="button"
+              disabled={!canEditCart}
               onClick={() => dialogRef.current?.showModal()}
             >
               Clear cart
@@ -262,6 +285,11 @@ export default function CartPanel({
         className="confirmation-dialog"
         aria-labelledby="clear-cart-title"
         aria-describedby="clear-cart-description"
+        onCancel={(event) => {
+          if (isCartSaving) {
+            event.preventDefault();
+          }
+        }}
       >
         <h2 id="clear-cart-title">Clear your cart?</h2>
 
@@ -269,10 +297,15 @@ export default function CartPanel({
           This will remove every item from your cart.
         </p>
 
+        <p role="status" aria-atomic="true">
+          {isCartSaving ? 'Clearing your cart…' : ''}
+        </p>
+
         <div className="dialog-actions">
           <button
             className="dialog-cancel-button"
             type="button"
+            disabled={isCartSaving}
             onClick={() => dialogRef.current?.close()}
           >
             Cancel
@@ -281,9 +314,10 @@ export default function CartPanel({
           <button
             className="dialog-confirm-button"
             type="button"
+            disabled={!canEditCart}
             onClick={confirmClearCart}
           >
-            Yes, clear cart
+            {isCartSaving ? 'Clearing…' : 'Yes, clear cart'}
           </button>
         </div>
       </dialog>

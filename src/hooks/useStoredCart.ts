@@ -1,11 +1,38 @@
 import { useEffect, useState } from 'react';
-
-type CartItem = {
-  productId: string;
-  quantity: number;
-};
+import type { CartItem } from '../api/cart';
 
 const STORAGE_KEY = 'sdet-practice-lab-cart-v1';
+
+function isCartItem(value: unknown): value is CartItem {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'productId' in value &&
+    typeof value.productId === 'string' &&
+    value.productId.trim() !== '' &&
+    'quantity' in value &&
+    typeof value.quantity === 'number' &&
+    Number.isSafeInteger(value.quantity) &&
+    value.quantity > 0
+  );
+}
+
+function cartSignature(items: CartItem[]): string {
+  return JSON.stringify(
+    items
+      .map(({ productId, quantity }) => ({
+        productId,
+        quantity,
+      }))
+      .sort((a, b) =>
+        a.productId < b.productId
+          ? -1
+          : a.productId > b.productId
+            ? 1
+            : 0,
+      ),
+  );
+}
 
 function loadCart(): CartItem[] {
   try {
@@ -25,17 +52,7 @@ function loadCart(): CartItem[] {
     const seenProductIds = new Set<string>();
 
     for (const item of parsed) {
-      if (
-        typeof item !== 'object' ||
-        item === null ||
-        !('productId' in item) ||
-        typeof item.productId !== 'string' ||
-        item.productId.trim() === '' ||
-        !('quantity' in item) ||
-        typeof item.quantity !== 'number' ||
-        !Number.isSafeInteger(item.quantity) ||
-        item.quantity < 1
-      ) {
+      if (!isCartItem(item)) {
         continue;
       }
 
@@ -58,11 +75,15 @@ function loadCart(): CartItem[] {
 }
 
 export function useStoredCart() {
-  const [cartItems, setCartItems] = useState<CartItem[]>(loadCart);
+  const [cartItems, setCartItems] =
+    useState<CartItem[]>(loadCart);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(cartItems));
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(cartItems),
+      );
     } catch {
       console.warn(
         'Cart could not be saved. It will remain available on this page.',
@@ -70,5 +91,43 @@ export function useStoredCart() {
     }
   }, [cartItems]);
 
-  return { cartItems, setCartItems };
+  function clearTransferredGuestCart(
+    snapshot: CartItem[],
+  ): boolean {
+    try {
+      const saved: unknown = JSON.parse(
+        localStorage.getItem(STORAGE_KEY) ?? '[]',
+      );
+
+      if (
+        !Array.isArray(saved) ||
+        !saved.every(isCartItem)
+      ) {
+        return false;
+      }
+
+      // Preserve guest items if the saved cart changed
+      // after the transfer snapshot was created.
+      if (
+        saved.length > 0 &&
+        cartSignature(saved) !== cartSignature(snapshot)
+      ) {
+        return false;
+      }
+
+      // Persist cleanup before removing the pending transfer record.
+      localStorage.setItem(STORAGE_KEY, '[]');
+      setCartItems([]);
+
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  return {
+    cartItems,
+    setCartItems,
+    clearTransferredGuestCart,
+  };
 }

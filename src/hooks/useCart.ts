@@ -14,12 +14,19 @@ export function useCart() {
     setCartItems,
     catalogueState,
     retryCatalogue,
+    customerCart,
   } = cart;
 
   const products =
     catalogueState.status === 'success'
       ? catalogueState.products
       : [];
+
+  const isCartSaving = customerCart?.isSaving ?? false;
+
+  const canEditCart =
+    catalogueState.status === 'success' &&
+    (customerCart === null || customerCart.canEdit);
 
   const cartCount = cartItems.reduce(
     (total, item) => total + item.quantity,
@@ -51,17 +58,36 @@ export function useCart() {
     );
 
   const canCheckout =
-    catalogueState.status === 'success' &&
+    canEditCart &&
     cartItems.length > 0 &&
     !hasCartIssues;
 
-  function addToCart(requestedProduct: Product) {
+  async function addToCart(requestedProduct: Product): Promise<boolean> {
+    if (!canEditCart) {
+      return false;
+    }
+
     const product = products.find(
       (item) => item.id === requestedProduct.id,
     );
 
     if (!product || product.stock < 1) {
-      return;
+      return false;
+    }
+
+    const currentQuantity =
+      cartItems.find((item) => item.productId === product.id)
+        ?.quantity ?? 0;
+
+    if (currentQuantity >= product.stock) {
+      return false;
+    }
+
+    if (customerCart) {
+      return customerCart.setQuantity(
+        product.id,
+        currentQuantity + 1,
+      );
     }
 
     setCartItems((currentItems) => {
@@ -69,68 +95,83 @@ export function useCart() {
         (item) => item.productId === product.id,
       );
 
-      const currentQuantity = existingItem?.quantity ?? 0;
-
-      if (currentQuantity >= product.stock) {
+      if ((existingItem?.quantity ?? 0) >= product.stock) {
         return currentItems;
       }
 
-      if (existingItem) {
-        return currentItems.map((item) =>
-          item.productId === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item,
-        );
-      }
-
-      return [...currentItems, { productId: product.id, quantity: 1 }];
+      return existingItem
+        ? currentItems.map((item) =>
+            item.productId === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item,
+          )
+        : [...currentItems, { productId: product.id, quantity: 1 }];
     });
+
+    return true;
   }
 
-  function updateCartQuantity(productId: string, quantity: number) {
+  async function updateCartQuantity(
+    productId: string,
+    quantity: number,
+  ): Promise<boolean> {
+    if (!canEditCart) {
+      return false;
+    }
+
     const product = products.find((item) => item.id === productId);
 
     if (
       !product ||
       !Number.isSafeInteger(quantity) ||
-      quantity < 1
+      quantity < 1 ||
+      quantity > product.stock
     ) {
-      return;
+      return false;
     }
 
-    setCartItems((currentItems) => {
-      const currentItem = currentItems.find(
-        (item) => item.productId === productId,
-      );
+    if (customerCart) {
+      return customerCart.setQuantity(productId, quantity);
+    }
 
-      if (!currentItem) {
-        return currentItems;
-      }
-
-      // Allow reducing an existing excess quantity one step at a time.
-      if (
-        quantity > product.stock &&
-        quantity >= currentItem.quantity
-      ) {
-        return currentItems;
-      }
-
-      return currentItems.map((item) =>
+    setCartItems((currentItems) =>
+      currentItems.map((item) =>
         item.productId === productId
           ? { ...item, quantity }
           : item,
-      );
-    });
+      ),
+    );
+
+    return true;
   }
 
-  function removeFromCart(productId: string) {
+  async function removeFromCart(productId: string): Promise<boolean> {
+    if (!canEditCart) {
+      return false;
+    }
+
+    if (customerCart) {
+      return customerCart.removeItem(productId);
+    }
+
     setCartItems((currentItems) =>
       currentItems.filter((item) => item.productId !== productId),
     );
+
+    return true;
   }
 
-  function clearCart() {
+  async function clearCart(): Promise<boolean> {
+    if (!canEditCart) {
+      return false;
+    }
+
+    if (customerCart) {
+      return customerCart.clearCart();
+    }
+
     setCartItems([]);
+    return true;
   }
 
   return {
@@ -142,6 +183,8 @@ export function useCart() {
     unavailableItems,
     hasCartIssues,
     canCheckout,
+    canEditCart,
+    isCartSaving,
     addToCart,
     updateCartQuantity,
     removeFromCart,

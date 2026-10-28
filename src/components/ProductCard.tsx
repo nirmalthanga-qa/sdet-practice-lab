@@ -6,12 +6,18 @@ type ProductCardProps = {
   product: Product;
   quantityInCart: number;
   onAddToCart: (product: Product) => void;
+  isCompared: boolean;
+  comparisonDisabled: boolean;
+  onToggleComparison: (productId: string) => void;
 };
 
 export default function ProductCard({
   product,
   quantityInCart,
   onAddToCart,
+  isCompared,
+  comparisonDisabled,
+  onToggleComparison,
 }: ProductCardProps) {
   return (
     <article
@@ -41,6 +47,19 @@ export default function ProductCard({
           quantityInCart={quantityInCart}
           onAddToCart={onAddToCart}
         />
+
+        <label className="product-compare-control">
+          <input
+            type="checkbox"
+            checked={isCompared}
+            disabled={comparisonDisabled}
+            aria-label={`Compare ${product.name}`}
+            aria-describedby="comparison-selection-help"
+            onChange={() => onToggleComparison(product.id)}
+          />
+
+          <span>Compare product</span>
+        </label>
       </div>
     </article>
   );

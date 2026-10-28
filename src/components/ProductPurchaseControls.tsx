@@ -17,7 +17,12 @@ export default function ProductPurchaseControls({
   quantityInCart,
   onAddToCart,
 }: ProductPurchaseControlsProps) {
-  const { catalogueState, retryCatalogue } = useCart();
+  const {
+    catalogueState,
+    retryCatalogue,
+    canEditCart,
+    isCartSaving,
+  } = useCart();
 
   const cartProduct =
     catalogueState.status === 'success'
@@ -33,7 +38,7 @@ export default function ProductPurchaseControls({
     stockMessage = 'Loading current cart prices and availability.';
   } else if (catalogueState.status === 'error') {
     buttonLabel = 'Availability unavailable';
-    stockMessage = 'We couldn’t check availability. Please try again.';
+    stockMessage = catalogueState.message;
   } else if (!cartProduct) {
     buttonLabel = 'Product unavailable';
     stockMessage = 'This product is no longer in the catalogue.';
@@ -56,7 +61,12 @@ export default function ProductPurchaseControls({
     canAdd = true;
   }
 
-  const isInStock = cartProduct !== undefined && cartProduct.stock > 0;
+  const isInStock =
+    cartProduct !== undefined && cartProduct.stock > 0;
+
+  const displayedButtonLabel = isCartSaving
+    ? 'Saving cart…'
+    : buttonLabel;
 
   return (
     <>
@@ -79,15 +89,15 @@ export default function ProductPurchaseControls({
       <button
         className="add-to-cart-button"
         type="button"
-        disabled={!canAdd}
-        aria-label={`${buttonLabel}: ${product.name}`}
+        disabled={!canAdd || !canEditCart}
+        aria-label={`${displayedButtonLabel}: ${product.name}`}
         onClick={() => {
-          if (canAdd && cartProduct) {
+          if (canAdd && canEditCart && cartProduct) {
             onAddToCart(cartProduct);
           }
         }}
       >
-        {buttonLabel}
+        {displayedButtonLabel}
       </button>
 
       {catalogueState.status === 'error' && (

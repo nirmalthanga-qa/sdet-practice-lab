@@ -4,27 +4,27 @@ import LearningTrackCard from '../components/LearningTrackCard';
 const shoppingFeatures = [
   {
     number: '01',
-    title: 'Explore products',
+    title: 'Explore the collection',
     description:
-      'Search everyday essentials, filter by category and availability, and compare prices.',
+      'Search workspace and audio essentials. Filter by category, stock and maximum price, sort the results, and browse across pages.',
   },
   {
     number: '02',
-    title: 'Build your cart',
+    title: 'Make it your cart',
     description:
-      'Add your favourites, adjust quantities and review your subtotal before checkout.',
+      'Shop as a guest or create an account. Adjust quantities, review prices, and transfer your guest items into your account cart.',
   },
   {
     number: '03',
-    title: 'Try checkout',
+    title: 'Complete a practice order',
     description:
-      'Practise entering delivery details and reviewing them. Use fictional information.',
+      'Sign in, enter fictional delivery details, review your order and complete a simulated checkout. View your saved receipt afterward.',
   },
   {
     number: '04',
-    title: 'Coming next',
+    title: 'Explore your order history',
     description:
-      'Customer accounts, simulated orders and interactive shopping insights are on the way.',
+      'Revisit your latest orders and explore daily spending or order counts through an interactive chart and accessible data table.',
   },
 ];
 
@@ -41,17 +41,26 @@ export default function HomePage() {
         </h1>
 
         <p className="hero-description">
-          Discover workspace and audio essentials in a shopping application
-          built for hands-on quality engineering practice.
+          Explore a complete practice shopping journey—from finding
+          products and building your cart to placing simulated orders
+          and reviewing your purchase history.
         </p>
 
-        <Link className="primary-link" to="/shop">
-          Explore the shop
-          <span aria-hidden="true"> →</span>
-        </Link>
+        <div className="cart-actions">
+          <Link className="primary-link" to="/shop">
+            Explore the shop
+            <span aria-hidden="true"> →</span>
+          </Link>
+
+          <Link className="primary-link" to="/orders">
+            My orders
+          </Link>
+        </div>
 
         <p className="sample-data-note">
-          A portfolio and testing project. No real purchases or payments.
+          A portfolio and testing project by Nirmal Kumar.
+          All payments are simulated. No money is charged and
+          no products are shipped.
         </p>
       </section>
 
@@ -67,7 +76,8 @@ export default function HomePage() {
           </h2>
 
           <p>
-            Browse the collection, build your cart and try the delivery form.
+            These features are ready to explore. Use fictional
+            information when creating an account or placing an order.
           </p>
         </div>
 
@@ -78,6 +88,7 @@ export default function HomePage() {
               number={feature.number}
               title={feature.title}
               description={feature.description}
+              status="Available"
             />
           ))}
         </div>

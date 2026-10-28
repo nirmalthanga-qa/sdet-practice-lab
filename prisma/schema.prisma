@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../server/src/generated/prisma"
@@ -10,4 +5,126 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum ProductCategory {
+  Workspace
+  Audio
+}
+
+model Product {
+  id           String          @id
+  name         String
+  description  String
+  category     ProductCategory
+  pricePaise   Int
+  stock        Int
+  icon         String
+  displayOrder Int             @default(0)
+  cartItems CartItem[]
+}
+
+model User {
+  id           String    @id @default(uuid())
+  fullName     String
+  email        String    @unique
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+  cartItems CartItem[]
+  cartTransfers CartTransfer[]
+  orders Order[]
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([productId])
+}
+
+model CartTransfer {
+  id          String   @id @default(uuid())
+  userId      String
+  transferId  String
+  payloadHash String
+  result      Json
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, transferId])
+}
+
+enum OrderStatus {
+  CONFIRMED
+}
+
+enum PaymentStatus {
+  SIMULATED_PAID
+}
+
+model Order {
+  id             String        @id @default(uuid())
+  userId         String
+  checkoutId     String
+  requestHash    String
+
+  status         OrderStatus   @default(CONFIRMED)
+  paymentStatus  PaymentStatus @default(SIMULATED_PAID)
+
+  currency       String        @default("INR")
+  subtotalPaise  Int
+  totalPaise     Int
+
+  fullName       String
+  email          String
+  address        String
+  city           String
+  postalCode     String
+
+  createdAt      DateTime      @default(now())
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items OrderItem[]
+
+  @@unique([userId, checkoutId])
+  @@index([userId, createdAt])
+}
+
+model OrderItem {
+  id             String @id @default(uuid())
+  orderId        String
+
+  productId      String
+  productName    String
+  unitPricePaise Int
+  quantity       Int
+  lineTotalPaise Int
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, productId])
 }

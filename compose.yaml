@@ -49,8 +49,7 @@ services:
       PORT: "3001"
       DATABASE_URL: ${DOCKER_DATABASE_URL:?Set DOCKER_DATABASE_URL in .env}
       SESSION_COOKIE_SECURE: "false"
-    ports:
-      - "127.0.0.1:3001:3001"
+      TRUST_PROXY_HOPS: "1"
     depends_on:
       db:
         condition: service_healthy

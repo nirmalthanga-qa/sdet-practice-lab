@@ -4,6 +4,7 @@ import { useCart } from '../hooks/useCart';
 import type { Product } from '../types/product';
 import { isProduct } from '../utils/isProduct';
 import ProductPurchaseControls from '../components/ProductPurchaseControls';
+import ProductInformation from '../components/ProductInformation';
 
 type ProductState =
   | { status: 'loading' }
@@ -157,7 +158,7 @@ function ProductDetails({ productId }: { productId: string }) {
     );
   }
 
-    const { product } = productState;
+  const { product } = productState;
 
   const quantityInCart =
     cartItems.find((item) => item.productId === product.id)?.quantity ?? 0;
@@ -198,6 +199,7 @@ function ProductDetails({ productId }: { productId: string }) {
           </Link>
         </div>
       </div>
+      <ProductInformation />
     </section>
   );
 }

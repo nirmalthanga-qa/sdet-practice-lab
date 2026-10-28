@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Practice delivery guide</title>
+
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: system-ui, sans-serif;
+        background: #0f172a;
+        color: #f8fafc;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 1.25rem;
+        line-height: 1.6;
+      }
+
+      h1 {
+        margin-top: 0;
+        font-size: 1.25rem;
+      }
+
+      h2 {
+        font-size: 1rem;
+      }
+
+      p,
+      li {
+        overflow-wrap: anywhere;
+      }
+
+      .note {
+        color: #cbd5e1;
+      }
+
+      details {
+        margin-top: 1rem;
+        border: 1px solid #64748b;
+        border-radius: 0.5rem;
+      }
+
+      summary {
+        padding: 0.75rem;
+        cursor: pointer;
+        font-weight: 600;
+      }
+
+      summary::marker {
+        color: #5eead4;
+      }
+
+      summary:focus-visible {
+        outline: 3px solid #5eead4;
+        outline-offset: 3px;
+      }
+
+      .example {
+        padding: 0 0.75rem 0.75rem;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <h1>Practice delivery guide</h1>
+
+      <p class="note">
+        This is a demo shop. Use fictional details.
+        No products will be shipped.
+      </p>
+
+      <h2>Completing your delivery details</h2>
+
+      <ul>
+        <li>Enter a fictional recipient name and street address.</li>
+        <li>The delivery contact email can differ from your account email.</li>
+        <li>Use a six-digit Indian PIN code starting with 1–9.</li>
+      </ul>
+
+      <p>
+        PIN validation checks the format only.
+        It does not confirm that an address exists or is serviceable.
+      </p>
+
+      <details>
+        <summary>Show example delivery details</summary>
+
+        <div class="example">
+          <p>
+            <strong>Recipient:</strong> Test Learner<br />
+            <strong>Email:</strong> learner@example.com<br />
+            <strong>Address:</strong> 123 Example Street<br />
+            <strong>City:</strong> Bengaluru<br />
+            <strong>PIN code:</strong> 560001
+          </p>
+
+          <p class="note">
+            These example details are for practice only.
+          </p>
+        </div>
+      </details>
+    </main>
+  </body>
+</html>

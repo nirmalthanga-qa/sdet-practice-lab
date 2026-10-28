@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import ProductCard from '../components/ProductCard';
 import CartPanel from '../components/CartPanel';
+import ProductComparison from '../components/ProductComparison';
 import type { Product } from '../types/product';
 import { useCart } from '../hooks/useCart';
 import { isProduct } from '../utils/isProduct';
@@ -21,6 +22,15 @@ const sortOptions: { value: SortOption; label: string }[] = [
   { value: 'price-desc', label: 'Price: high to low' },
 ];
 
+const currencyFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+});
+
+const priceStepPaise = 10_000;
+const pageSize = 6;
+const comparisonLimit = 3;
+
 export default function ShopPage() {
   const [productsState, setProductsState] =
     useState<ProductsState>({ status: 'loading' });
@@ -31,7 +41,12 @@ export default function ShopPage() {
     useState<CategoryFilter>('All');
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('default');
+  const [maxPricePaise, setMaxPricePaise] = useState<number | null>(
+    null,
+  );
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [requestedPage, setRequestedPage] = useState(1);
+  const [comparisonIds, setComparisonIds] = useState<string[]>([]);
 
   const {
     cartItems,
@@ -50,10 +65,13 @@ export default function ShopPage() {
       try {
         const response = await fetch('/api/products', {
           signal: controller.signal,
+          cache: 'no-store',
         });
 
         if (!response.ok) {
-          throw new Error(`Product request failed: ${response.status}`);
+          throw new Error(
+            `Product request failed: ${response.status}`,
+          );
         }
 
         const data: unknown = await response.json();
@@ -68,11 +86,25 @@ export default function ShopPage() {
           throw new Error('Invalid products response');
         }
 
+        const loadedProducts = data.products;
+        const productIds = new Set(
+          loadedProducts.map((product) => product.id),
+        );
+
+        if (productIds.size !== loadedProducts.length) {
+          throw new Error('Duplicate product IDs');
+        }
+
         if (!controller.signal.aborted) {
           setProductsState({
             status: 'success',
-            products: data.products,
+            products: loadedProducts,
           });
+
+          // Remove selections for products no longer in the catalogue.
+          setComparisonIds((current) =>
+            current.filter((id) => productIds.has(id)),
+          );
         }
       } catch {
         if (!controller.signal.aborted) {
@@ -91,7 +123,31 @@ export default function ShopPage() {
   }, [requestVersion]);
 
   const products =
-    productsState.status === 'success' ? productsState.products : [];
+    productsState.status === 'success'
+      ? productsState.products
+      : [];
+
+  // Compare using the full catalogue, not just the current page.
+  const comparedProducts = comparisonIds.flatMap((productId) => {
+    const product = products.find((item) => item.id === productId);
+
+    return product ? [product] : [];
+  });
+
+  const highestPricePaise = products.reduce(
+    (highest, product) => Math.max(highest, product.pricePaise),
+    0,
+  );
+
+  const priceCeilingPaise = Math.max(
+    priceStepPaise,
+    Math.ceil(highestPricePaise / priceStepPaise) * priceStepPaise,
+  );
+
+  const selectedMaxPricePaise = Math.min(
+    maxPricePaise ?? priceCeilingPaise,
+    priceCeilingPaise,
+  );
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
 
@@ -106,7 +162,15 @@ export default function ShopPage() {
 
     const matchesStock = !inStockOnly || product.stock > 0;
 
-    return matchesSearch && matchesCategory && matchesStock;
+    const matchesPrice =
+      product.pricePaise <= selectedMaxPricePaise;
+
+    return (
+      matchesSearch &&
+      matchesCategory &&
+      matchesStock &&
+      matchesPrice
+    );
   });
 
   const displayedProducts = [...filteredProducts];
@@ -117,7 +181,53 @@ export default function ShopPage() {
     displayedProducts.sort((a, b) => b.pricePaise - a.pricePaise);
   }
 
+  const totalPages = Math.max(
+    1,
+    Math.ceil(displayedProducts.length / pageSize),
+  );
+
+  const currentPage = Math.min(requestedPage, totalPages);
+  const pageStart = (currentPage - 1) * pageSize;
+
+  const paginatedProducts = displayedProducts.slice(
+    pageStart,
+    pageStart + pageSize,
+  );
+
+  function changePage(page: number) {
+    setRequestedPage(Math.max(1, Math.min(page, totalPages)));
+  }
+
+  function toggleComparison(productId: string) {
+    if (!products.some((product) => product.id === productId)) {
+      return;
+    }
+
+    setComparisonIds((current) => {
+      if (current.includes(productId)) {
+        return current.filter((id) => id !== productId);
+      }
+
+      if (current.length >= comparisonLimit) {
+        return current;
+      }
+
+      return [...current, productId];
+    });
+  }
+
+  function removeFromComparison(productId: string) {
+    setComparisonIds((current) =>
+      current.filter((id) => id !== productId),
+    );
+  }
+
+  function clearComparison() {
+    setComparisonIds([]);
+  }
+
   function retryLoadingProducts() {
+    setRequestedPage(1);
     setProductsState({ status: 'loading' });
     setRequestVersion((current) => current + 1);
   }
@@ -127,6 +237,8 @@ export default function ShopPage() {
     setSelectedCategory('All');
     setInStockOnly(false);
     setSortBy('default');
+    setMaxPricePaise(null);
+    setRequestedPage(1);
   }
 
   return (
@@ -173,12 +285,18 @@ export default function ShopPage() {
         />
       </div>
 
-      <p role="status" aria-atomic="true" className="product-count">
+      <p
+        role="status"
+        aria-atomic="true"
+        className="product-count"
+      >
         {productsState.status === 'loading'
           ? 'Loading products…'
           : productsState.status === 'success'
             ? `${displayedProducts.length} ${
-                displayedProducts.length === 1 ? 'product' : 'products'
+                displayedProducts.length === 1
+                  ? 'product'
+                  : 'products'
               } found`
             : ''}
       </p>
@@ -207,7 +325,10 @@ export default function ShopPage() {
               type="search"
               placeholder="Try keyboard or headphones"
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setRequestedPage(1);
+              }}
             />
           </div>
 
@@ -225,12 +346,15 @@ export default function ShopPage() {
 
                   if (category !== undefined) {
                     setSelectedCategory(category);
+                    setRequestedPage(1);
                   }
                 }}
               >
                 {categories.map((category) => (
                   <option key={category} value={category}>
-                    {category === 'All' ? 'All categories' : category}
+                    {category === 'All'
+                      ? 'All categories'
+                      : category}
                   </option>
                 ))}
               </select>
@@ -249,6 +373,7 @@ export default function ShopPage() {
 
                   if (option !== undefined) {
                     setSortBy(option.value);
+                    setRequestedPage(1);
                   }
                 }}
               >
@@ -261,15 +386,64 @@ export default function ShopPage() {
             </div>
           </div>
 
+          <div className="price-filter">
+            <div className="price-filter-heading">
+              <label htmlFor="product-max-price">
+                Maximum price
+              </label>
+
+              <span>
+                {currencyFormatter.format(
+                  selectedMaxPricePaise / 100,
+                )}
+              </span>
+            </div>
+
+            <input
+              id="product-max-price"
+              type="range"
+              min={0}
+              max={priceCeilingPaise}
+              step={priceStepPaise}
+              value={selectedMaxPricePaise}
+              disabled={products.length === 0}
+              aria-valuetext={currencyFormatter.format(
+                selectedMaxPricePaise / 100,
+              )}
+              aria-describedby="product-max-price-help"
+              onChange={(event) => {
+                const value = event.currentTarget.valueAsNumber;
+
+                if (Number.isFinite(value)) {
+                  setMaxPricePaise(
+                    value === priceCeilingPaise ? null : value,
+                  );
+                  setRequestedPage(1);
+                }
+              }}
+            />
+
+            <p id="product-max-price-help" className="field-help">
+              Show products priced at or below this amount.
+              Use arrow keys to adjust by ₹100.
+            </p>
+          </div>
+
           <label className="stock-switch">
             <input
               type="checkbox"
               role="switch"
               checked={inStockOnly}
-              onChange={(event) => setInStockOnly(event.target.checked)}
+              onChange={(event) => {
+                setInStockOnly(event.target.checked);
+                setRequestedPage(1);
+              }}
             />
 
-            <span className="stock-switch-track" aria-hidden="true" />
+            <span
+              className="stock-switch-track"
+              aria-hidden="true"
+            />
             <span>In stock only</span>
           </label>
 
@@ -283,9 +457,28 @@ export default function ShopPage() {
             </button>
           </div>
 
+          <p
+            id="comparison-selection-help"
+            className="field-help"
+            role="status"
+            aria-atomic="true"
+          >
+            {comparisonIds.length} of {comparisonLimit} products
+            selected for comparison.
+            {comparisonIds.length === comparisonLimit
+              ? ' Remove a selection to compare another product.'
+              : ' Select products using the checkboxes on their cards.'}
+          </p>
+
+          <ProductComparison
+            products={comparedProducts}
+            onRemove={removeFromComparison}
+            onClear={clearComparison}
+          />
+
           {displayedProducts.length > 0 ? (
             <div className="products-grid">
-              {displayedProducts.map((product) => (
+              {paginatedProducts.map((product) => (
                 <ProductCard
                   key={product.id}
                   product={product}
@@ -295,6 +488,12 @@ export default function ShopPage() {
                     )?.quantity ?? 0
                   }
                   onAddToCart={addToCart}
+                  isCompared={comparisonIds.includes(product.id)}
+                  comparisonDisabled={
+                    comparisonIds.length >= comparisonLimit &&
+                    !comparisonIds.includes(product.id)
+                  }
+                  onToggleComparison={toggleComparison}
                 />
               ))}
             </div>
@@ -302,10 +501,47 @@ export default function ShopPage() {
             <div className="empty-state">
               <h2>No products found</h2>
               <p>
-                Try different filters or use Reset filters to see all
-                products.
+                Try different filters or use Reset filters to see
+                all products.
               </p>
             </div>
+          )}
+
+          {displayedProducts.length > 0 && (
+            <nav
+              className="shop-pagination"
+              aria-label="Product pagination"
+            >
+              <button
+                className="clear-search-button"
+                type="button"
+                disabled={currentPage === 1}
+                onClick={() => changePage(currentPage - 1)}
+              >
+                Previous
+              </button>
+
+              <p role="status" aria-atomic="true">
+                Page {currentPage} of {totalPages}
+                {' · '}
+                Showing {pageStart + 1}–
+                {Math.min(
+                  pageStart + pageSize,
+                  displayedProducts.length,
+                )}
+                {' of '}
+                {displayedProducts.length} products
+              </p>
+
+              <button
+                className="clear-search-button"
+                type="button"
+                disabled={currentPage === totalPages}
+                onClick={() => changePage(currentPage + 1)}
+              >
+                Next
+              </button>
+            </nav>
           )}
         </>
       )}
