@@ -10,11 +10,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: development-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     name: Lint and build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     steps:
       - name: Check out source code
@@ -23,7 +27,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '24'
+          node-version: "24"
           cache: npm
 
       - name: Install dependencies
@@ -34,3 +38,47 @@ jobs:
 
       - name: Check types and build
         run: npm run build
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci_placeholder
+          POSTGRES_DB: sdet_ci
+          DOCKER_DATABASE_URL: postgresql://ci:ci_placeholder@db:5432/sdet_ci?schema=public
+
+  docker:
+    name: Build Docker image (${{ matrix.service }})
+    needs: quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api
+            dockerfile: Dockerfile.api
+          - service: web
+            dockerfile: Dockerfile.web
+
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          target: runtime
+          platforms: linux/amd64
+          push: false
+          tags: sdet-practice-lab-${{ matrix.service }}:ci
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
