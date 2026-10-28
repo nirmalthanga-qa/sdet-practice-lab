@@ -51,19 +51,6 @@ app.use('/api/auth', authRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/orders', ordersRouter);
 
-// Temporary diagnostic. Remove after verifying the deployment.
-if (process.env.PROXY_DIAGNOSTICS === 'true') {
-  app.get('/api/proxy-check', (request, response) => {
-    response.set('Cache-Control', 'no-store');
-
-    response.status(200).json({
-      clientIp: request.ip,
-      protocol: request.protocol,
-      secure: request.secure,
-    });
-  });
-}
-
 app.get('/api/health', (_request, response) => {
   response.status(200).json({
     status: 'ok',
