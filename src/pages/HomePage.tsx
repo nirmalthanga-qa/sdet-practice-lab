@@ -1,30 +1,30 @@
-import { Link } from 'react-router';
-import LearningTrackCard from '../components/LearningTrackCard';
+import { Link } from "react-router";
+import LearningTrackCard from "../components/LearningTrackCard";
 
 const shoppingFeatures = [
   {
-    number: '01',
-    title: 'Explore the collection',
+    number: "01",
+    title: "Explore the collection",
     description:
-      'Search workspace and audio essentials. Filter by category, stock and maximum price, sort the results, and browse across pages.',
+      "Search workspace and audio essentials. Filter by category, stock and maximum price, sort the results, and browse across pages.",
   },
   {
-    number: '02',
-    title: 'Make it your cart',
+    number: "02",
+    title: "Make it your cart",
     description:
-      'Shop as a guest or create an account. Adjust quantities, review prices, and transfer your guest items into your account cart.',
+      "Shop as a guest or create an account. Adjust quantities, review prices, and transfer your guest items into your account cart.",
   },
   {
-    number: '03',
-    title: 'Complete a practice order',
+    number: "03",
+    title: "Complete a practice order",
     description:
-      'Sign in, enter fictional delivery details, review your order and complete a simulated checkout. View your saved receipt afterward.',
+      "Sign in, enter fictional delivery details, review your order and complete a simulated checkout. View your saved receipt afterward.",
   },
   {
-    number: '04',
-    title: 'Explore your order history',
+    number: "04",
+    title: "Explore your order history",
     description:
-      'Revisit your latest orders and explore daily spending or order counts through an interactive chart and accessible data table.',
+      "Revisit your latest orders and explore daily spending or order counts through an interactive chart and accessible data table.",
   },
 ];
 
@@ -41,9 +41,9 @@ export default function HomePage() {
         </h1>
 
         <p className="hero-description">
-          Explore a complete practice shopping journey—from finding
-          products and building your cart to placing simulated orders
-          and reviewing your purchase history.
+          Explore a complete practice shopping journey—from finding products and
+          building your cart to placing simulated orders and reviewing your
+          purchase history.
         </p>
 
         <div className="cart-actions">
@@ -55,13 +55,22 @@ export default function HomePage() {
           <Link className="primary-link" to="/orders">
             My orders
           </Link>
-        </div>
 
-        <p className="sample-data-note">
-          A portfolio and testing project by Nirmal Kumar.
-          All payments are simulated. No money is charged and
-          no products are shipped.
-        </p>
+          <p>
+            New to software quality engineering? Start with the fundamentals and
+            learn at your own pace.
+          </p>
+
+          <a
+            className="primary-link"
+            href="https://sdet-learning-hub.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Visit SDET Learning Hub (opens in a new tab)"
+          >
+            Visit SDET Learning Hub <span aria-hidden="true">↗</span>
+          </a>
+        </div>
       </section>
 
       <section
@@ -76,8 +85,8 @@ export default function HomePage() {
           </h2>
 
           <p>
-            These features are ready to explore. Use fictional
-            information when creating an account or placing an order.
+            These features are ready to explore. Use fictional information when
+            creating an account or placing an order.
           </p>
         </div>
 
