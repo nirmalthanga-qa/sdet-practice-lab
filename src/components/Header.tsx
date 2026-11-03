@@ -87,7 +87,6 @@ function HeaderContent() {
 
         <span className="brand-text">
           <span>SDET Practice Lab</span>
-          <span className="brand-credit">by Nirmal Kumar</span>
         </span>
       </Link>
 
