@@ -4,6 +4,7 @@ import { useCart } from '../hooks/useCart';
 import type { Product } from '../types/product';
 import { isProduct } from '../utils/isProduct';
 import ProductPurchaseControls from '../components/ProductPurchaseControls';
+import DeliveryEstimate from '../components/DeliveryEstimate';
 import ProductInformation from '../components/ProductInformation';
 
 type ProductState =
@@ -199,6 +200,7 @@ function ProductDetails({ productId }: { productId: string }) {
           </Link>
         </div>
       </div>
+      <DeliveryEstimate />
       <ProductInformation />
     </section>
   );

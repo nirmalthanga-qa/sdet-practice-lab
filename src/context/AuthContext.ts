@@ -4,6 +4,7 @@ export type AuthUser = {
   id: string;
   fullName: string;
   email: string;
+  isAdmin: boolean;
 };
 
 export type AuthState =

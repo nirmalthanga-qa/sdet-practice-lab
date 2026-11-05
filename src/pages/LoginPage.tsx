@@ -18,6 +18,7 @@ export default function LoginPage() {
       : '';
 
   const isAllowedReturnPath =
+    requestedPath === '/admin/inventory' ||
     requestedPath === '/checkout' ||
     requestedPath === '/orders' ||
     /^\/orders\/[a-zA-Z0-9-]+$/.test(requestedPath);

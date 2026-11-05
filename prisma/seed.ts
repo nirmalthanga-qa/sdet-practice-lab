@@ -18,6 +18,12 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  await prisma.category.createMany({
+    data: [...new Set(products.map((product) => product.category))].map((name) => ({
+      name, normalizedName: name.toLowerCase(),
+    })),
+    skipDuplicates: true,
+  });
   const result = await prisma.product.createMany({
     data: products.map((product, index) => ({
       ...product,

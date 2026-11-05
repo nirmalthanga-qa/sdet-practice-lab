@@ -33,6 +33,7 @@ export const openApiDocument = {
   ],
 
   tags: [
+    { name: "Admin inventory", description: "Inventory tools for authorized administrators." },
     {
       name: "Health",
       description: "API process availability",
@@ -58,6 +59,755 @@ export const openApiDocument = {
   ],
 
   paths: {
+    "/admin/products/{productId}": {
+  "delete": {
+    "operationId": "deleteAdminProduct",
+    "tags": [
+      "Admin inventory"
+    ],
+    "summary": "Permanently delete a product",
+    "description": "Also deletes linked account-cart items. Past order snapshots are preserved. Repeated deletion of a missing product returns 404. After an unconfirmed response, reload inventory before retrying.",
+    "security": [
+      {
+        "sessionCookie": []
+      }
+    ],
+    "parameters": [
+      {
+        "name": "productId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    ],
+    "responses": {
+      "204": {
+        "description": "Product deleted. No response body."
+      },
+      "400": {
+        "description": "Invalid product ID.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Sign in required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "403": {
+        "description": "Administrator required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "Product does not exist.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Deletion outcome unconfirmed.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      }
+    }
+  }
+},
+    "/categories": {
+  "get": {
+    "tags": [
+      "Products"
+    ],
+    "operationId": "listCategories",
+    "summary": "List all categories, including empty categories",
+    "responses": {
+      "200": {
+        "description": "Available categories.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "categories"
+              ],
+              "properties": {
+                "categories": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Categories unavailable."
+      }
+    }
+  }
+},
+    "/admin/categories": {
+  "post": {
+    "tags": [
+      "Admin inventory"
+    ],
+    "operationId": "createCategory",
+    "summary": "Create a category",
+    "description": "Names are trimmed, repeated whitespace is collapsed, and duplicates are rejected regardless of case.",
+    "security": [
+      {
+        "sessionCookie": []
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              }
+            },
+            "additionalProperties": false
+          },
+          "example": {
+            "name": "Gaming"
+          }
+        }
+      }
+    },
+    "responses": {
+      "201": {
+        "description": "Category created.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "category"
+              ],
+              "properties": {
+                "category": {
+                  "type": "object",
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 60
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid name."
+      },
+      "401": {
+        "description": "Sign in required."
+      },
+      "403": {
+        "description": "Admin access required."
+      },
+      "409": {
+        "description": "Category already exists."
+      },
+      "415": {
+        "description": "JSON required."
+      },
+      "503": {
+        "description": "Outcome unconfirmed. Reload categories before retrying."
+      }
+    }
+  }
+},
+    "/admin/inventory/import": {
+  "post": {
+    "operationId": "importAdminInventory",
+    "tags": [
+      "Admin inventory"
+    ],
+    "summary": "Atomically replace stock totals after preview",
+    "description": "All rows succeed or the transaction rolls back. expectedStock must match current stock. After an uncertain response, check inventory before preparing another import.",
+    "security": [
+      {
+        "sessionCookie": []
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "productId",
+                    "stock",
+                    "expectedStock"
+                  ],
+                  "properties": {
+                    "productId": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "stock": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "expectedStock": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "example": {
+            "items": [
+              {
+                "productId": "keyboard",
+                "expectedStock": 18,
+                "stock": 25
+              }
+            ]
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "All stock totals saved.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "updatedProductCount"
+              ],
+              "properties": {
+                "updatedProductCount": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid payload or duplicate product IDs.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Sign in required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "403": {
+        "description": "Administrator required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "409": {
+        "description": "Inventory changed or product missing. All writes rolled back.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "415": {
+        "description": "JSON required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Outcome unconfirmed. Inspect inventory before retrying.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      }
+    }
+  }
+},
+    "/admin/products": {
+  "post": {
+    "operationId": "createAdminProduct",
+    "tags": [
+      "Admin inventory"
+    ],
+    "summary": "Create a new product",
+    "security": [
+      {
+        "sessionCookie": []
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "description",
+              "category",
+              "icon",
+              "pricePaise",
+              "stock",
+              "displayOrder"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 150
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "category": {
+                "type": "string",
+                "minLength": 1, "maxLength": 60
+              },
+              "icon": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32
+              },
+              "pricePaise": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "stock": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              },
+              "displayOrder": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2147483647
+              }
+            }
+          },
+          "example": {
+            "id": "wireless-mouse",
+            "name": "Orbit Wireless Mouse",
+            "description": "A comfortable mouse for everyday work.",
+            "category": "Workspace",
+            "pricePaise": 149950,
+            "stock": 20,
+            "icon": "🖱️",
+            "displayOrder": 10
+          }
+        }
+      }
+    },
+    "responses": {
+      "201": {
+        "description": "Product created.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "product"
+              ],
+              "properties": {
+                "product": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "category",
+                    "icon",
+                    "pricePaise",
+                    "stock",
+                    "displayOrder"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100,
+                      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 150
+                    },
+                    "description": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2000
+                    },
+                    "category": {
+                      "type": "string",
+                      "minLength": 1, "maxLength": 60
+                    },
+                    "icon": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 32
+                    },
+                    "pricePaise": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "stock": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "displayOrder": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid product fields.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Sign in required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "403": {
+        "description": "Administrator required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "409": {
+        "description": "Product ID already exists.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "415": {
+        "description": "JSON required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Creation unconfirmed. Check inventory before retrying with the same ID.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      }
+    }
+  }
+},
+    "/admin/inventory": {
+      get: {
+        operationId: "getAdminInventory",
+        tags: ["Admin inventory"],
+        summary: "List inventory as an administrator",
+        security: [{ sessionCookie: [] }],
+        responses: {
+          "200": {
+            description: "Inventory sorted by display order and product ID.",
+            content: { "application/json": { schema: {
+              type: "object", required: ["items"],
+              properties: { items: { type: "array", items: {
+                type: "object", required: ["id", "name", "stock", "pricePaise"],
+                properties: {
+                  id: { type: "string" }, name: { type: "string" },
+                  stock: { type: "integer" }, pricePaise: { type: "integer" },
+                },
+              } } },
+            } } },
+          },
+          "401": { description: "Missing or expired session." },
+          "403": { description: "Signed-in account does not have inventory access (ADMIN_REQUIRED)." },
+          "503": { description: "Session or inventory temporarily unavailable." },
+        },
+      },
+    },
+    "/admin/inventory/{productId}/stock": {
+      "put": {
+        "tags": [
+          "Admin inventory"
+        ],
+        "operationId": "setAdminProductStock",
+        "summary": "Set a product’s stock quantity",
+        "description": "Sets the absolute stock quantity. Zero marks the product out of stock. Executing this request changes inventory.",
+        "security": [
+          {
+            "sessionCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "keyboard"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "stock": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 2147483647,
+                    "example": 5
+                  }
+                },
+                "required": [
+                  "stock"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stock saved.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "productId": {
+                      "type": "string",
+                      "example": "keyboard"
+                    },
+                    "stock": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647,
+                      "example": 5
+                    }
+                  },
+                  "required": [
+                    "productId",
+                    "stock"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_STOCK: quantity is outside the allowed range or the JSON object is invalid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "UNAUTHENTICATED: missing or expired session.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "ADMIN_REQUIRED: signed-in customer lacks inventory access.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "PRODUCT_NOT_FOUND: no matching product.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE: send application/json.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "SESSION_UNAVAILABLE or INVENTORY_UPDATE_FAILED. Reload inventory to confirm its current value.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       get: {
         tags: ["Health"],
@@ -102,14 +852,24 @@ export const openApiDocument = {
         operationId: "getProducts",
         summary: "Get the product catalogue",
         description: [
-          "Returns all products, including out-of-stock products.",
-          "Authentication is not required.",
-          "Products are ordered by display order, then product ID.",
-          "Search, filtering, sorting and pagination currently happen in the frontend.",
-          "This endpoint does not expose query parameters for those operations.",
+          "Returns matching products. Without parameters, returns the full catalogue.",
+          "Search is a case-insensitive literal name match. Filters combine.",
+          "Default ordering is display order then ID. Pass page or pageSize to paginate. Pages beyond the last return an empty products array.",
         ].join(" "),
-
+        parameters: [
+          { name: "page", in: "query", description: "Starts at 1. Defaults to 1 when only pageSize is supplied.", schema: { type: "integer", minimum: 1, maximum: 1000000 } },
+          { name: "pageSize", in: "query", description: "Defaults to 6 when only page is supplied.", schema: { type: "integer", minimum: 1, maximum: 100 } },
+          { name: "q", in: "query", schema: { type: "string" } },
+          { name: "category", in: "query", schema: { type: "string", minLength: 1, maxLength: 60 } },
+          { name: "inStock", in: "query", description: "True excludes sold-out products.", schema: { type: "boolean" } },
+          { name: "maxPricePaise", in: "query", schema: { type: "integer", minimum: 0, maximum: 2147483647 } },
+          { name: "sort", in: "query", schema: { type: "string", enum: ["default", "price-asc", "price-desc"] } },
+        ],
         responses: {
+          "400": {
+            description: "Invalid, repeated or unknown parameter (INVALID_CATALOGUE_QUERY).",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+          },
           "200": {
             description:
               "The catalogue was retrieved. An empty catalogue returns an empty products array and total 0.",
@@ -125,10 +885,13 @@ export const openApiDocument = {
                         $ref: "#/components/schemas/Product",
                       },
                     },
+                    page: { type: "integer", minimum: 1, description: "Present for paginated requests." },
+                    pageSize: { type: "integer", minimum: 1, maximum: 100, description: "Present for paginated requests." },
+                    totalPages: { type: "integer", minimum: 0, description: "Present for paginated requests." },
                     total: {
                       type: "integer",
                       minimum: 0,
-                      description: "Number of products in the returned array.",
+                      description: "Number of all matching products before pagination.",
                     },
                   },
                 },
@@ -317,7 +1080,7 @@ export const openApiDocument = {
 
           category: {
             type: "string",
-            description: "Product category.",
+            description: "Existing category name from GET /categories.",
             example: "Workspace",
           },
 

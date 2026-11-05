@@ -1,4 +1,6 @@
+import { useCategories } from '../hooks/useCategories';
 import { useEffect, useState } from 'react';
+import ProductSearch from '../components/ProductSearch';
 import ProductCard from '../components/ProductCard';
 import CartPanel from '../components/CartPanel';
 import ProductComparison from '../components/ProductComparison';
@@ -6,7 +8,7 @@ import type { Product } from '../types/product';
 import { useCart } from '../hooks/useCart';
 import { isProduct } from '../utils/isProduct';
 
-type CategoryFilter = 'All' | Product['category'];
+type CategoryFilter = string;
 type SortOption = 'default' | 'price-asc' | 'price-desc';
 
 type ProductsState =
@@ -14,7 +16,7 @@ type ProductsState =
   | { status: 'success'; products: Product[] }
   | { status: 'error'; message: string };
 
-const categories: CategoryFilter[] = ['All', 'Workspace', 'Audio'];
+
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: 'default', label: 'Default order' },
@@ -28,23 +30,25 @@ const currencyFormatter = new Intl.NumberFormat('en-IN', {
 });
 
 const priceStepPaise = 10_000;
-const pageSize = 6;
+const pageSizes = [3, 6, 9];
 const comparisonLimit = 3;
 
 export default function ShopPage() {
+  const { categories, status: categoryStatus, reload: reloadCategories } = useCategories();
   const [productsState, setProductsState] =
     useState<ProductsState>({ status: 'loading' });
   const [requestVersion, setRequestVersion] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] =
-    useState<CategoryFilter>('All');
+    useState<CategoryFilter>('');
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('default');
   const [maxPricePaise, setMaxPricePaise] = useState<number | null>(
     null,
   );
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [pageSize, setPageSize] = useState(6);
   const [requestedPage, setRequestedPage] = useState(1);
   const [comparisonIds, setComparisonIds] = useState<string[]>([]);
 
@@ -148,50 +152,109 @@ export default function ShopPage() {
     priceCeilingPaise,
   );
 
-  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const params = new URLSearchParams();
+  if (searchTerm.trim()) params.set('q', searchTerm.trim());
+  if (selectedCategory !== '') params.set('category', selectedCategory);
+  if (inStockOnly) params.set('inStock', 'true');
+  if (maxPricePaise !== null) params.set('maxPricePaise', String(selectedMaxPricePaise));
+  if (sortBy !== 'default') params.set('sort', sortBy);
+  const paramsHaveSearch = params.has('q');
+  params.set('page', String(requestedPage));
+  params.set('pageSize', String(pageSize));
+  const query = params.toString();
 
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.name
-      .toLowerCase()
-      .includes(normalizedSearch);
+  const [result, setResult] = useState<{
+    query: string;
+    version: number;
+    products: Product[] | null;
+    total: number;
+    totalPages: number;
+  } | null>(null);
 
-    const matchesCategory =
-      selectedCategory === 'All' ||
-      product.category === selectedCategory;
+  const [lastSuccessfulPage, setLastSuccessfulPage] = useState<{
+    products: Product[];
+    total: number;
+    totalPages: number;
+    page: number;
+    pageSize: number;
+  } | null>(null);
 
-    const matchesStock = !inStockOnly || product.stock > 0;
+  useEffect(() => {
+    const controller = new AbortController();
 
-    const matchesPrice =
-      product.pricePaise <= selectedMaxPricePaise;
+    async function loadPage() {
+      try {
+        const response = await fetch('/api/products?' + query, {
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        if (!response.ok) throw new Error('Catalogue page unavailable');
 
-    return (
-      matchesSearch &&
-      matchesCategory &&
-      matchesStock &&
-      matchesPrice
-    );
-  });
+        const data: unknown = await response.json();
+        if (
+          typeof data !== 'object' || data === null ||
+          !('products' in data) || !Array.isArray(data.products) ||
+          !data.products.every(isProduct) ||
+          !('total' in data) || typeof data.total !== 'number' ||
+          !Number.isSafeInteger(data.total) || data.total < 0 ||
+          !('page' in data) || data.page !== requestedPage ||
+          !('pageSize' in data) || data.pageSize !== pageSize ||
+          !('totalPages' in data) || typeof data.totalPages !== 'number' ||
+          data.totalPages !== Math.ceil(data.total / pageSize)
+        ) throw new Error('Invalid catalogue page');
 
-  const displayedProducts = [...filteredProducts];
+        if (controller.signal.aborted) return;
+        const lastPage = Math.max(1, data.totalPages);
+        if (requestedPage > lastPage) {
+          setRequestedPage(lastPage);
+          return;
+        }
 
-  if (sortBy === 'price-asc') {
-    displayedProducts.sort((a, b) => a.pricePaise - b.pricePaise);
-  } else if (sortBy === 'price-desc') {
-    displayedProducts.sort((a, b) => b.pricePaise - a.pricePaise);
-  }
+        const products = data.products;
+        const total = data.total;
+        const totalPages = data.totalPages;
+        setResult({query, version: requestVersion, products, total, totalPages});
+        setLastSuccessfulPage({ products, total, totalPages, page: requestedPage, pageSize });
+      } catch {
+        if (!controller.signal.aborted) {
+          setResult({
+            query, version: requestVersion, products: null,
+            total: 0, totalPages: 0,
+          });
+        }
+      }
+    }
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(displayedProducts.length / pageSize),
-  );
+    // Debounce typed searches. Page navigation without a search runs immediately.
+    const timer = window.setTimeout(() => void loadPage(), paramsHaveSearch ? 200 : 0);
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query, requestVersion, requestedPage, pageSize, paramsHaveSearch]);
 
-  const currentPage = Math.min(requestedPage, totalPages);
-  const pageStart = (currentPage - 1) * pageSize;
+  const currentResult = result?.query === query && result.version === requestVersion
+    ? result : null;
+  const searching = currentResult === null;
+  const searchFailed = currentResult?.products === null;
+  // Retain the last complete page until its replacement is ready.
+  // Its pagination labels must describe the products still on screen.
+  const paginatedProducts = searchFailed ? [] : lastSuccessfulPage?.products ?? [];
+  const total = searchFailed ? 0 : lastSuccessfulPage?.total ?? 0;
+  const totalPages = searchFailed ? 0 : lastSuccessfulPage?.totalPages ?? 0;
+  const currentPage = lastSuccessfulPage?.page ?? requestedPage;
+  const displayedPageSize = lastSuccessfulPage?.pageSize ?? pageSize;
+  const pageStart = (currentPage - 1) * displayedPageSize;
 
-  const paginatedProducts = displayedProducts.slice(
-    pageStart,
-    pageStart + pageSize,
-  );
+  const term = searchTerm.trim().toLowerCase();
+  const suggestions = term ? products.filter((product) =>
+    product.name.toLowerCase().includes(term) &&
+    (selectedCategory === '' || product.category === selectedCategory) &&
+    (!inStockOnly || product.stock > 0) &&
+    product.pricePaise <= selectedMaxPricePaise
+  ) : [];
+  if (sortBy === 'price-asc') suggestions.sort((a, b) => a.pricePaise - b.pricePaise);
+  if (sortBy === 'price-desc') suggestions.sort((a, b) => b.pricePaise - a.pricePaise);
 
   function changePage(page: number) {
     setRequestedPage(Math.max(1, Math.min(page, totalPages)));
@@ -233,7 +296,7 @@ export default function ShopPage() {
 
   function resetFilters() {
     setSearchTerm('');
-    setSelectedCategory('All');
+    setSelectedCategory('');
     setInStockOnly(false);
     setSortBy('default');
     setMaxPricePaise(null);
@@ -300,8 +363,8 @@ export default function ShopPage() {
         {productsState.status === 'loading'
           ? 'Loading products…'
           : productsState.status === 'success'
-            ? `${displayedProducts.length} ${
-                displayedProducts.length === 1
+            ? searching ? 'Loading products…' : searchFailed ? '' : `${total} ${
+                total === 1
                   ? 'product'
                   : 'products'
               } found`
@@ -324,20 +387,14 @@ export default function ShopPage() {
 
       {productsState.status === 'success' && (
         <>
-          <div className="search-field">
-            <label htmlFor="product-search">Search products</label>
-
-            <input
-              id="product-search"
-              type="search"
-              placeholder="Try keyboard or headphones"
-              value={searchTerm}
-              onChange={(event) => {
-                setSearchTerm(event.target.value);
-                setRequestedPage(1);
-              }}
-            />
-          </div>
+          <ProductSearch
+            value={searchTerm}
+            matches={suggestions}
+            onChange={(value) => {
+              setSearchTerm(value);
+              setRequestedPage(1);
+            }}
+          />
 
           <div className="shop-dropdowns">
             <div className="category-field">
@@ -345,26 +402,23 @@ export default function ShopPage() {
 
               <select
                 id="product-category"
+                disabled={categoryStatus !== 'ready'}
                 value={selectedCategory}
                 onChange={(event) => {
-                  const category = categories.find(
-                    (item) => item === event.target.value,
-                  );
-
-                  if (category !== undefined) {
-                    setSelectedCategory(category);
-                    setRequestedPage(1);
-                  }
+                  setSelectedCategory(event.target.value);
+                  setRequestedPage(1);
                 }}
               >
+                <option value="">All categories</option>
                 {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category === 'All'
-                      ? 'All categories'
-                      : category}
-                  </option>
+                  <option key={category.name} value={category.name}>{category.name}</option>
                 ))}
               </select>
+              <p role="status">{categoryStatus === 'loading' ? 'Loading categories…' : ''}</p>
+              {categoryStatus === 'error' && <>
+                <p role="alert">Categories are unavailable.</p>
+                <button className="clear-search-button" type="button" onClick={reloadCategories}>Retry categories</button>
+              </>}
             </div>
 
             <div className="category-field">
@@ -483,8 +537,24 @@ export default function ShopPage() {
             onClear={clearComparison}
           />
 
-          {displayedProducts.length > 0 ? (
-            <div className="products-grid">
+          <p className="catalogue-update-status" role="status" aria-atomic="true">
+            {searching
+              ? lastSuccessfulPage
+                ? 'Updating products… Previous results remain visible.'
+                : 'Loading products…'
+              : searchFailed ? '' : `${total} products found.`}
+          </p>
+
+          {searchFailed ? (
+            <div className="empty-state">
+              <p role="alert">Search is unavailable. Please try again.</p>
+              <button className="clear-search-button" type="button"
+                onClick={() => setRequestVersion((current) => current + 1)}>
+                Retry search
+              </button>
+            </div>
+          ) : total > 0 ? (
+            <div className="products-grid" aria-busy={searching}>
               {paginatedProducts.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -504,7 +574,7 @@ export default function ShopPage() {
                 />
               ))}
             </div>
-          ) : (
+          ) : searching ? null : (
             <div className="empty-state">
               <h2>No products found</h2>
               <p>
@@ -514,7 +584,23 @@ export default function ShopPage() {
             </div>
           )}
 
-          {displayedProducts.length > 0 && (
+          <div className="shop-pagination">
+            <label htmlFor="shop-page-size">Products per page</label>
+            <select
+              id="shop-page-size"
+              value={pageSize}
+              onChange={(event) => {
+                setPageSize(Number(event.currentTarget.value));
+                setRequestedPage(1);
+              }}
+            >
+              {pageSizes.map((size) => (
+                <option key={size} value={size}>{size}</option>
+              ))}
+            </select>
+          </div>
+
+          {total > 0 && (
             <nav
               className="shop-pagination"
               aria-label="Product pagination"
@@ -522,7 +608,7 @@ export default function ShopPage() {
               <button
                 className="clear-search-button"
                 type="button"
-                disabled={currentPage === 1}
+                disabled={searching || currentPage === 1}
                 onClick={() => changePage(currentPage - 1)}
               >
                 Previous
@@ -533,17 +619,17 @@ export default function ShopPage() {
                 {' · '}
                 Showing {pageStart + 1}–
                 {Math.min(
-                  pageStart + pageSize,
-                  displayedProducts.length,
+                  pageStart + displayedPageSize,
+                  total,
                 )}
                 {' of '}
-                {displayedProducts.length} products
+                {total} products
               </p>
 
               <button
                 className="clear-search-button"
                 type="button"
-                disabled={currentPage === totalPages}
+                disabled={searching || currentPage === totalPages}
                 onClick={() => changePage(currentPage + 1)}
               >
                 Next

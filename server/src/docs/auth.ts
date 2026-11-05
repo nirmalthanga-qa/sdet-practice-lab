@@ -299,8 +299,21 @@ export const authPaths = {
 
       responses: {
         '200': jsonResponse(
-          'The session is valid.',
-          userResponseSchema,
+           'The session is valid. Includes server-derived admin navigation visibility.',
+          {
+            type: 'object', required: ['user'],
+            properties: {
+              user: {
+                allOf: [
+                  { $ref: '#/components/schemas/User' },
+                  { type: 'object', required: ['isAdmin'], properties: {
+                    isAdmin: { type: 'boolean', example: false,
+                      description: 'Derived from ADMIN_USER_IDS. API authorization is checked separately on every admin request.' },
+                  } },
+                ],
+              },
+            },
+          },
         ),
 
         '401': unauthenticated,

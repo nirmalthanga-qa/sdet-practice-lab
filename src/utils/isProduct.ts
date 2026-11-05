@@ -13,7 +13,8 @@ export function isProduct(value: unknown): value is Product {
     'description' in value &&
     typeof value.description === 'string' &&
     'category' in value &&
-    (value.category === 'Workspace' || value.category === 'Audio') &&
+    typeof value.category === 'string' &&
+    value.category.trim().length > 0 &&
     'pricePaise' in value &&
     typeof value.pricePaise === 'number' &&
     Number.isSafeInteger(value.pricePaise) &&

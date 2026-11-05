@@ -1,11 +1,16 @@
+import { categoriesRouter, adminCategoriesRouter } from './routes/categories.js';
+import { categoryName } from './validation/category.js';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import express from 'express';
+import { z } from 'zod';
 import cookieParser from 'cookie-parser';
 import { prisma } from './lib/prisma.js';
 import { authRouter } from './routes/auth.js';
 import { cartRouter } from './routes/cart.js';
+import { adminProductsRouter } from './routes/adminProducts.js';
+import { adminInventoryRouter } from './routes/adminInventory.js';
 import { ordersRouter } from './routes/orders.js';
 import swaggerUi from 'swagger-ui-express';
 import { openApiDocument } from './docs/openapi.js';
@@ -71,6 +76,10 @@ app.use(
 app.use('/api/auth', authRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/orders', ordersRouter);
+app.use('/api/admin/inventory', adminInventoryRouter);
+app.use('/api/admin/products', adminProductsRouter);
+app.use('/api/categories', categoriesRouter);
+app.use('/api/admin/categories', adminCategoriesRouter);
 
 app.get('/api/health', (_request, response) => {
   response.status(200).json({
@@ -79,19 +88,69 @@ app.get('/api/health', (_request, response) => {
   });
 });
 
-app.get('/api/products', async (_request, response) => {
+function positiveQueryInteger(maximum: number) {
+  return z.string().regex(/^[1-9]\d*$/).transform(Number)
+    .pipe(z.number().int().max(maximum)).optional();
+}
+
+const catalogueQuery = z.strictObject({
+  page: positiveQueryInteger(1_000_000),
+  pageSize: positiveQueryInteger(100),
+  q: z.string().trim().optional(),
+  category: categoryName.optional(),
+  inStock: z.enum(['true', 'false']).optional(),
+  maxPricePaise: z.string().regex(/^\d+$/).transform(Number)
+    .pipe(z.number().int().min(0).max(2147483647)).optional(),
+  sort: z.enum(['default', 'price-asc', 'price-desc']).optional(),
+});
+
+app.get('/api/products', async (request, response) => {
+  const parsed = catalogueQuery.safeParse(request.query);
+  if (!parsed.success) {
+    response.status(400).json({
+      error: { code: 'INVALID_CATALOGUE_QUERY', message: 'Check the catalogue query parameters.' },
+    });
+    return;
+  }
+
+  const { q, category, inStock, maxPricePaise, sort } = parsed.data;
   try {
-    const products = await prisma.product.findMany({
+    const where = {
+        name: q ? { contains: q.replace(/[\\%_]/g, '\\$&'), mode: 'insensitive' as const } : undefined,
+        category,
+        stock: inStock === 'true' ? { gt: 0 } : undefined,
+        pricePaise: maxPricePaise === undefined ? undefined : { lte: maxPricePaise },
+      };
+    const options = {
+      where,
       select: productSelect,
       orderBy: [
-        { displayOrder: 'asc' },
-        { id: 'asc' },
+        ...(sort === 'price-asc' ? [{ pricePaise: 'asc' as const }] : []),
+        ...(sort === 'price-desc' ? [{ pricePaise: 'desc' as const }] : []),
+        { displayOrder: 'asc' as const },
+        { id: 'asc' as const },
       ],
-    });
+    };
+
+    if (parsed.data.page === undefined && parsed.data.pageSize === undefined) {
+      const products = await prisma.product.findMany(options);
+      response.status(200).json({ products, total: products.length });
+      return;
+    }
+
+    const page = parsed.data.page ?? 1;
+    const pageSize = parsed.data.pageSize ?? 6;
+    const [total, products] = await prisma.$transaction([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        ...options,
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ], { isolationLevel: 'RepeatableRead' });
 
     response.status(200).json({
-      products,
-      total: products.length,
+      products, total, page, pageSize, totalPages: Math.ceil(total / pageSize),
     });
   } catch {
     console.error('Failed to load products.');

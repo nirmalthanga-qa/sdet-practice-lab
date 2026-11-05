@@ -16,7 +16,9 @@ function isAuthUser(value: unknown): value is AuthUser {
     'fullName' in value &&
     typeof value.fullName === 'string' &&
     'email' in value &&
-    typeof value.email === 'string'
+    typeof value.email === 'string' &&
+    'isAdmin' in value &&
+    typeof value.isAdmin === 'boolean'
   );
 }
 

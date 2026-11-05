@@ -141,6 +141,12 @@ function HeaderContent() {
           <NavLink to="/orders" onClick={closeMenu}>
             My orders
           </NavLink>
+
+          {authState.status === "authenticated" && authState.user.isAdmin && (
+            <NavLink to="/admin/inventory" onClick={closeMenu}>
+              Inventory
+            </NavLink>
+          )}
         </nav>
 
         <div className="header-actions">

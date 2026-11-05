@@ -1,3 +1,4 @@
+import { isAdminUser } from '../middleware/requireAdmin.js';
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { z } from 'zod';
@@ -316,7 +317,7 @@ authRouter.get('/me', async (request, response) => {
     }
 
     response.status(200).json({
-      user: session.user,
+      user: { ...session.user, isAdmin: isAdminUser(session.user.id) },
     });
   } catch {
     console.error('Session lookup failed.');

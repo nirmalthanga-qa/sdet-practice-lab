@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { getOrder, OrderApiError } from '../api/orders';
 import type { Order } from '../types/order';
 
@@ -21,6 +21,24 @@ const dateFormatter = new Intl.DateTimeFormat('en-IN', {
   dateStyle: 'medium',
   timeStyle: 'short',
 });
+
+function receiptText(order: Order) {
+  const amount = (paise: number) => currencyFormatter.format(paise / 100);
+  return [
+    'SDET Practice Lab | Order receipt',
+    'Simulated payment. No money was charged.',
+    'Order: ' + order.id,
+    'Placed: ' + dateFormatter.format(new Date(order.createdAt)),
+    '',
+    ...order.items.map((item) =>
+      item.productName + ' | ' + item.quantity + ' × ' +
+      amount(item.unitPricePaise) + ' = ' + amount(item.lineTotalPaise),
+    ),
+    '',
+    'Total: ' + amount(order.totalPaise),
+    '',
+  ].join('\n');
+}
 
 export default function OrderDetailsPage() {
   const { orderId } = useParams();
@@ -44,6 +62,8 @@ function OrderDetails({ orderId }: { orderId: string }) {
   const [state, setState] = useState<OrderState>({
     status: 'loading',
   });
+  const [params] = useSearchParams();
+  const preview = params.get('view') === 'print';
   const [requestVersion, setRequestVersion] = useState(0);
 
   useEffect(() => {
@@ -160,7 +180,7 @@ function OrderDetails({ orderId }: { orderId: string }) {
 
   return (
     <section
-      className="shop-section"
+      className={preview ? 'shop-section receipt-preview' : 'shop-section'}
       aria-labelledby="order-details-title"
     >
       <Link className="back-to-shop" to="/shop">
@@ -170,7 +190,7 @@ function OrderDetails({ orderId }: { orderId: string }) {
       <div className="shop-heading">
         <p className="eyebrow">YOUR ORDER</p>
 
-        <h1 id="order-details-title">Order confirmed.</h1>
+        <h1 id="order-details-title">{preview ? 'Order receipt' : 'Order confirmed.'}</h1>
 
         <p className="hero-description">
           Your practice order has been saved.
@@ -279,6 +299,25 @@ function OrderDetails({ orderId }: { orderId: string }) {
       </div>
 
       <div className="cart-actions">
+        {preview ? (
+          <button className="primary-link" type="button" onClick={() => window.print()}>
+            Print receipt
+          </button>
+        ) : (
+          <>
+            <a
+              className="primary-link"
+              download={`receipt-${order.id}.txt`}
+              href={`data:text/plain;charset=utf-8,${encodeURIComponent(receiptText(order))}`}
+            >
+              Download receipt (.txt)
+            </a>
+            <Link className="primary-link" to="?view=print" target="_blank" rel="noopener noreferrer">
+              Print preview (opens in a new tab)
+            </Link>
+          </>
+        )}
+
         <Link className="primary-link" to="/orders">
           My orders
         </Link>

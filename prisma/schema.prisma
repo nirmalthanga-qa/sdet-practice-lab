@@ -7,16 +7,18 @@ datasource db {
   provider = "postgresql"
 }
 
-enum ProductCategory {
-  Workspace
-  Audio
+model Category {
+  name           String    @id
+  normalizedName String    @unique
+  products       Product[]
 }
 
 model Product {
   id           String          @id
   name         String
   description  String
-  category     ProductCategory
+  category     String
+  categoryRecord Category @relation(fields: [category], references: [name], onDelete: Restrict, onUpdate: Cascade)
   pricePaise   Int
   stock        Int
   icon         String
