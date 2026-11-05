@@ -28,7 +28,9 @@ function CustomerCartProvider({
 
   let effectiveCatalogueState = catalogueState;
 
-  if (customerCart.cartState.status === 'loading') {
+  if (customerCart.isReloading && catalogueState.status === 'success') {
+    effectiveCatalogueState = { ...catalogueState, refreshing: true };
+  } else if (customerCart.cartState.status === 'loading') {
     effectiveCatalogueState = {
       status: 'loading',
     };
@@ -142,9 +144,9 @@ export default function CartProvider({
   }, [requestVersion]);
 
   function retryCatalogue() {
-    setCatalogueState({
-      status: 'loading',
-    });
+    setCatalogueState((current) => current.status === 'success'
+      ? { ...current, refreshing: true }
+      : { status: 'loading' });
 
     setRequestVersion((current) => current + 1);
   }

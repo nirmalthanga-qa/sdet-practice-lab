@@ -34,6 +34,8 @@ export function useCustomerCart() {
   const [cartState, setCartState] =
     useState<CustomerCartState>({ status: 'loading' });
 
+  const [isReloading, setIsReloading] = useState(false);
+  const reloadingRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
   const [mutationError, setMutationError] = useState('');
   const [needsReload, setNeedsReload] = useState(false);
@@ -51,6 +53,7 @@ export function useCustomerCart() {
         const items = await getCustomerCart(controller.signal);
 
         if (!controller.signal.aborted) {
+          setNeedsReload(false); setSessionExpired(false); setMutationError('');
           setCartState({
             status: 'ready',
             items,
@@ -66,6 +69,8 @@ export function useCustomerCart() {
               error.status === 401,
           });
         }
+      } finally {
+        if (!controller.signal.aborted) { reloadingRef.current = false; setIsReloading(false); }
       }
     }
 
@@ -81,14 +86,13 @@ export function useCustomerCart() {
   }, []);
 
   function reloadCart() {
-    if (savingRef.current) {
+    if (savingRef.current || reloadingRef.current) {
       return;
     }
 
     setMutationError('');
-    setNeedsReload(false);
-    setSessionExpired(false);
-    setCartState({ status: 'loading' });
+    reloadingRef.current = true; setIsReloading(true);
+    setCartState((current) => current.status === 'ready' ? current : { status: 'loading' });
     setRequestVersion((current) => current + 1);
   }
 
@@ -96,7 +100,7 @@ export function useCustomerCart() {
     operation: (signal: AbortSignal) => Promise<void>,
   ): Promise<boolean> {
     if (
-      savingRef.current ||
+      savingRef.current || reloadingRef.current ||
       cartState.status !== 'ready' ||
       needsReload ||
       sessionExpired
@@ -205,12 +209,13 @@ export function useCustomerCart() {
 
   const canEdit =
     cartState.status === 'ready' &&
-    !isSaving &&
+    !isSaving && !isReloading &&
     !needsReload &&
     !sessionExpired;
 
   return {
     cartState,
+    isReloading,
     cartItems,
     isSaving,
     mutationError,

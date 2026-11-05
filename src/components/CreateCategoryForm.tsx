@@ -39,6 +39,6 @@ export default function CreateCategoryForm({ onCreated }: { onCreated: (name: st
       <p id="category-name-help" className="field-help">For example, Gaming or Accessories. Names are unique regardless of letter case.</p>
     </div>
     <button className="clear-search-button" type="submit" disabled={busy}>{busy ? 'Adding category…' : 'Add category'}</button>
-    <p role="status" aria-atomic="true">{message}</p><p className="field-error" role="alert">{error}</p>
+    <div className="admin-feedback"><p role="status" aria-atomic="true">{message}</p><p className="field-error" role="alert">{error}</p></div>
   </form>;
 }

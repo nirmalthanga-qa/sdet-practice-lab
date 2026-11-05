@@ -138,14 +138,17 @@ function HeaderContent() {
             Practice Shop
           </NavLink>
 
+          <NavLink to="/wishlist" onClick={closeMenu}>Wishlist</NavLink>
+
           <NavLink to="/orders" onClick={closeMenu}>
             My orders
           </NavLink>
 
           {authState.status === "authenticated" && authState.user.isAdmin && (
-            <NavLink to="/admin/inventory" onClick={closeMenu}>
-              Inventory
-            </NavLink>
+            <>
+              <NavLink to="/admin/inventory" onClick={closeMenu}>Inventory</NavLink>
+              <NavLink to="/admin/discounts" onClick={closeMenu}>Discounts</NavLink>
+            </>
           )}
         </nav>
 

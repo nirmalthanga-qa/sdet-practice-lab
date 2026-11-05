@@ -1,3 +1,5 @@
+import { wishlistPaths, wishlistSchemas } from './wishlist.js';
+import { discountPaths, discountSchemas } from './discounts.js';
 import { authPaths, authSchemas } from "./auth.js";
 import { cartPaths, cartSchemas } from "./cart.js";
 import { orderPaths, orderSchemas } from "./orders.js";
@@ -33,6 +35,8 @@ export const openApiDocument = {
   ],
 
   tags: [
+    { name: "Wishlist", description: "Save and reorder account products." },
+    { name: "Admin discounts", description: "Create and manage discount codes." },
     { name: "Admin inventory", description: "Inventory tools for authorized administrators." },
     {
       name: "Health",
@@ -59,6 +63,8 @@ export const openApiDocument = {
   ],
 
   paths: {
+    ...wishlistPaths,
+    ...discountPaths,
     "/admin/products/{productId}": {
   "delete": {
     "operationId": "deleteAdminProduct",
@@ -1050,6 +1056,7 @@ export const openApiDocument = {
     },
 
     schemas: {
+      ...wishlistSchemas,
       Product: {
         type: "object",
         required: [
@@ -1133,6 +1140,7 @@ export const openApiDocument = {
         },
       },
 
+      ...discountSchemas,
       ...authSchemas,
       ...cartSchemas,
       ...orderSchemas,

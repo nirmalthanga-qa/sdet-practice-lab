@@ -6,7 +6,7 @@ const currencyFormatter = new Intl.NumberFormat('en-IN', {
   currency: 'INR',
 });
 
-export default function OrderSummary() {
+export default function OrderSummary({ discount }: { discount?: { discountCode: string; discountPaise: number } | null }) {
   const {
     cartProducts,
     cartCount,
@@ -88,6 +88,8 @@ export default function OrderSummary() {
             </strong>
           </div>
 
+          {discount && <div className="order-summary-total"><span>Discount ({discount.discountCode})</span><strong>−{currencyFormatter.format(discount.discountPaise / 100)}</strong></div>}
+          <div className="order-summary-total"><span>Total</span><strong>{currencyFormatter.format((subtotalPaise - (discount?.discountPaise ?? 0)) / 100)}</strong></div>
           <p className="field-help">
             Delivery charges and any additional taxes are not
             calculated in this practice step.

@@ -1,3 +1,4 @@
+import WishlistButton from './WishlistButton';
 import { Link } from 'react-router';
 import type { Product } from '../types/product';
 import ProductPurchaseControls from './ProductPurchaseControls';
@@ -47,6 +48,8 @@ export default function ProductCard({
           quantityInCart={quantityInCart}
           onAddToCart={onAddToCart}
         />
+
+        <WishlistButton product={product} />
 
         <label className="product-compare-control">
           <input

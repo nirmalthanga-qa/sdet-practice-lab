@@ -120,9 +120,9 @@ export default function InventoryCsvPreview({ onSaved }: { onSaved: () => void }
       </div>
       <button className="clear-search-button" type="button" disabled={saving || (!fileName && !busy)}
         onClick={() => { void preview(undefined); if (inputRef.current) inputRef.current.value = ''; }}>Clear preview</button>
-      <p role="status" aria-atomic="true">{saving ? 'Saving inventory…' : saveMessage || (busy ? 'Reading file and checking inventory…' : rows.length
+      <div className="admin-feedback"><p role="status" aria-atomic="true">{saving ? 'Saving inventory…' : saveMessage || (busy ? 'Reading file and checking inventory…' : rows.length
         ? `${fileName}: ${rows.length} rows, ${invalidCount} invalid. ${invalidCount ? 'Correct the errors and select the file again.' : 'All rows are valid for preview.'}` : '')}</p>
-      <p className="field-error" role="alert">{error}</p>
+      <p className="field-error" role="alert">{error}</p></div>
       {rows.length > 0 && <div className="inventory-scroll" role="region" aria-label="CSV preview table" tabIndex={0}>
         <table className="inventory-table">
           <caption>{fileName} — current stock is a snapshot taken during preview</caption>

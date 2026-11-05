@@ -1,3 +1,4 @@
+import { adminDiscountsRouter } from './routes/adminDiscounts.js';
 import { categoriesRouter, adminCategoriesRouter } from './routes/categories.js';
 import { categoryName } from './validation/category.js';
 import { existsSync } from 'node:fs';
@@ -11,6 +12,7 @@ import { authRouter } from './routes/auth.js';
 import { cartRouter } from './routes/cart.js';
 import { adminProductsRouter } from './routes/adminProducts.js';
 import { adminInventoryRouter } from './routes/adminInventory.js';
+import { wishlistRouter } from './routes/wishlist.js';
 import { ordersRouter } from './routes/orders.js';
 import swaggerUi from 'swagger-ui-express';
 import { openApiDocument } from './docs/openapi.js';
@@ -76,10 +78,12 @@ app.use(
 app.use('/api/auth', authRouter);
 app.use('/api/cart', cartRouter);
 app.use('/api/orders', ordersRouter);
+app.use('/api/wishlist', wishlistRouter);
 app.use('/api/admin/inventory', adminInventoryRouter);
 app.use('/api/admin/products', adminProductsRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/admin/categories', adminCategoriesRouter);
+app.use('/api/admin/discounts', adminDiscountsRouter);
 
 app.get('/api/health', (_request, response) => {
   response.status(200).json({

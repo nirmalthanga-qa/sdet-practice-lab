@@ -23,6 +23,7 @@ model Product {
   stock        Int
   icon         String
   displayOrder Int             @default(0)
+  wishlistItems WishlistItem[]
   cartItems CartItem[]
 }
 
@@ -37,6 +38,7 @@ model User {
   cartItems CartItem[]
   cartTransfers CartTransfer[]
   orders Order[]
+  wishlist Wishlist?
 }
 
 model Session {
@@ -82,6 +84,7 @@ model CartTransfer {
 
 enum OrderStatus {
   CONFIRMED
+  CANCELLED
 }
 
 enum PaymentStatus {
@@ -100,6 +103,10 @@ model Order {
   currency       String        @default("INR")
   subtotalPaise  Int
   totalPaise     Int
+  discountCode   String?
+  discountType   DiscountType?
+  discountValue  Int?
+  discountPaise  Int           @default(0)
 
   fullName       String
   email          String
@@ -108,6 +115,7 @@ model Order {
   postalCode     String
 
   createdAt      DateTime      @default(now())
+  cancelledAt    DateTime?
 
   user  User        @relation(fields: [userId], references: [id], onDelete: Restrict)
   items OrderItem[]
@@ -129,4 +137,39 @@ model OrderItem {
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@unique([orderId, productId])
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model Discount {
+  code                 String       @id
+  type                 DiscountType
+  percent              Int?
+  amountPaise          Int?
+  minimumSubtotalPaise Int          @default(0)
+  expiresAt            DateTime
+  isActive             Boolean      @default(true)
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+}
+
+model Wishlist {
+  userId String @id
+  version Int @default(0)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items WishlistItem[]
+}
+
+model WishlistItem {
+  userId String
+  productId String
+  position Int
+  wishlist Wishlist @relation(fields: [userId], references: [userId], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@id([userId, productId])
+  @@index([productId])
+  @@index([userId, position])
 }

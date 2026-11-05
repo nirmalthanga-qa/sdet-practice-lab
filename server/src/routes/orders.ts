@@ -1,3 +1,6 @@
+import { cancelCustomerOrder, CancellationError } from '../lib/cancelOrder.js';
+import { discountCodeSchema } from '../validation/discount.js';
+import { calculateDiscount, DiscountError } from '../lib/discountCalculation.js';
 import { createHash } from 'node:crypto';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
@@ -39,6 +42,8 @@ const checkoutItemSchema = z
 const checkoutSchema = z
   .object({
     checkoutId: z.uuid(),
+    discountCode: discountCodeSchema.optional(),
+    expectedDiscountPaise: z.number().int().min(0).max(MAX_DATABASE_INTEGER).optional(),
 
     paymentMethod: z.literal('simulated'),
 
@@ -77,7 +82,8 @@ const checkoutSchema = z
         },
       ),
   })
-  .strict();
+  .strict().refine((input) => (input.discountCode === undefined) === (input.expectedDiscountPaise === undefined),
+    { message: 'Provide discountCode and expectedDiscountPaise together.', path: ['discountCode'] });
 
 type CheckoutInput = z.infer<typeof checkoutSchema>;
 
@@ -106,9 +112,14 @@ function toPublicOrder(order: OrderWithItems) {
     status: order.status,
     paymentStatus: order.paymentStatus,
     currency: order.currency,
+    discountCode: order.discountCode,
+    discountType: order.discountType,
+    discountValue: order.discountValue,
+    discountPaise: order.discountPaise,
     subtotalPaise: order.subtotalPaise,
     totalPaise: order.totalPaise,
     createdAt: order.createdAt,
+    cancelledAt: order.cancelledAt,
 
     delivery: {
       fullName: order.fullName,
@@ -136,6 +147,116 @@ function toPublicOrder(order: OrderWithItems) {
   };
 }
 
+async function validateCart(transaction: Prisma.TransactionClient, userId: string, expectedItems: CheckoutInput['items']) {
+  const expectedItemsById = new Map(expectedItems.map((item) => [item.productId, item]));
+  const cartItems = await transaction.cartItem.findMany({
+    where: {
+      userId,
+    },
+    include: {
+      product: true,
+    },
+    orderBy: {
+      productId: 'asc',
+    },
+  });
+
+  if (cartItems.length === 0) {
+    throw new CheckoutError(
+      409,
+      'CART_EMPTY',
+      'Your cart is empty. Add a product before placing an order.',
+    );
+  }
+
+  if (cartItems.length !== expectedItems.length) {
+    throw new CheckoutError(
+      409,
+      'CART_CHANGED',
+      'Your cart has changed. Review it before placing your order.',
+    );
+  }
+
+  const orderItems = cartItems.map((cartItem) => {
+    const expectedItem = expectedItemsById.get(
+      cartItem.productId,
+    );
+
+    if (
+      !expectedItem ||
+      expectedItem.quantity !== cartItem.quantity
+    ) {
+      throw new CheckoutError(
+        409,
+        'CART_CHANGED',
+        'Your cart has changed. Review it before placing your order.',
+      );
+    }
+
+    const product = cartItem.product;
+
+    if (expectedItem.unitPricePaise !== product.pricePaise) {
+      throw new CheckoutError(
+        409,
+        'PRICE_CHANGED',
+        'A product price has changed. Review your cart before continuing.',
+      );
+    }
+
+    if (
+      cartItem.quantity < 1 ||
+      product.pricePaise < 0 ||
+      cartItem.quantity > product.stock
+    ) {
+      throw new CheckoutError(
+        409,
+        'ITEM_UNAVAILABLE',
+        `${product.name} is no longer available in the requested quantity.`,
+      );
+    }
+
+    const lineTotalPaise =
+      product.pricePaise * cartItem.quantity;
+
+    if (
+      !Number.isSafeInteger(lineTotalPaise) ||
+      lineTotalPaise > MAX_DATABASE_INTEGER
+    ) {
+      throw new CheckoutError(
+        400,
+        'ORDER_LIMIT_EXCEEDED',
+        'The order value exceeds the supported limit.',
+      );
+    }
+
+    return {
+      productId: product.id,
+      productName: product.name,
+      unitPricePaise: product.pricePaise,
+      quantity: cartItem.quantity,
+      lineTotalPaise,
+    };
+  });
+
+  const subtotalPaise = orderItems.reduce(
+    (total, item) => total + item.lineTotalPaise,
+    0,
+  );
+
+  if (
+    !Number.isSafeInteger(subtotalPaise) ||
+    subtotalPaise > MAX_DATABASE_INTEGER
+  ) {
+    throw new CheckoutError(
+      400,
+      'ORDER_LIMIT_EXCEEDED',
+      'The order value exceeds the supported limit.',
+    );
+  }
+
+  return { cartItems, orderItems, subtotalPaise };
+}
+
 async function createOrder(
   userId: string,
   input: CheckoutInput,
@@ -157,13 +278,11 @@ async function createOrder(
         delivery: input.delivery,
         paymentMethod: input.paymentMethod,
         items: expectedItems,
+        // Omit these keys for legacy checkouts so their request hashes stay compatible.
+        ...(input.discountCode ? { discountCode: input.discountCode, expectedDiscountPaise: input.expectedDiscountPaise } : {}),
       }),
     )
     .digest('hex');
-
-  const expectedItemsById = new Map(
-    expectedItems.map((item) => [item.productId, item]),
-  );
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
@@ -198,109 +317,12 @@ async function createOrder(
             };
           }
 
-          const cartItems = await transaction.cartItem.findMany({
-            where: {
-              userId,
-            },
-            include: {
-              product: true,
-            },
-            orderBy: {
-              productId: 'asc',
-            },
-          });
-
-          if (cartItems.length === 0) {
-            throw new CheckoutError(
-              409,
-              'CART_EMPTY',
-              'Your cart is empty. Add a product before placing an order.',
-            );
-          }
-
-          if (cartItems.length !== expectedItems.length) {
-            throw new CheckoutError(
-              409,
-              'CART_CHANGED',
-              'Your cart has changed. Review it before placing your order.',
-            );
-          }
-
-          const orderItems = cartItems.map((cartItem) => {
-            const expectedItem = expectedItemsById.get(
-              cartItem.productId,
-            );
-
-            if (
-              !expectedItem ||
-              expectedItem.quantity !== cartItem.quantity
-            ) {
-              throw new CheckoutError(
-                409,
-                'CART_CHANGED',
-                'Your cart has changed. Review it before placing your order.',
-              );
-            }
-
-            const product = cartItem.product;
-
-            if (expectedItem.unitPricePaise !== product.pricePaise) {
-              throw new CheckoutError(
-                409,
-                'PRICE_CHANGED',
-                'A product price has changed. Review your cart before continuing.',
-              );
-            }
-
-            if (
-              cartItem.quantity < 1 ||
-              product.pricePaise < 0 ||
-              cartItem.quantity > product.stock
-            ) {
-              throw new CheckoutError(
-                409,
-                'ITEM_UNAVAILABLE',
-                `${product.name} is no longer available in the requested quantity.`,
-              );
-            }
-
-            const lineTotalPaise =
-              product.pricePaise * cartItem.quantity;
-
-            if (
-              !Number.isSafeInteger(lineTotalPaise) ||
-              lineTotalPaise > MAX_DATABASE_INTEGER
-            ) {
-              throw new CheckoutError(
-                400,
-                'ORDER_LIMIT_EXCEEDED',
-                'The order value exceeds the supported limit.',
-              );
-            }
-
-            return {
-              productId: product.id,
-              productName: product.name,
-              unitPricePaise: product.pricePaise,
-              quantity: cartItem.quantity,
-              lineTotalPaise,
-            };
-          });
-
-          const subtotalPaise = orderItems.reduce(
-            (total, item) => total + item.lineTotalPaise,
-            0,
-          );
-
-          if (
-            !Number.isSafeInteger(subtotalPaise) ||
-            subtotalPaise > MAX_DATABASE_INTEGER
-          ) {
-            throw new CheckoutError(
-              400,
-              'ORDER_LIMIT_EXCEEDED',
-              'The order value exceeds the supported limit.',
-            );
+          const { cartItems, orderItems, subtotalPaise } = await validateCart(transaction, userId, expectedItems);
+          const discountSnapshot = input.discountCode
+            ? calculateDiscount(await transaction.discount.findUnique({ where: { code: input.discountCode } }), subtotalPaise, Date.now())
+            : { discountCode: null, discountType: null, discountValue: null, discountPaise: 0 };
+          if (input.discountCode && discountSnapshot.discountPaise !== input.expectedDiscountPaise) {
+            throw new CheckoutError(409, 'DISCOUNT_CHANGED', 'The discount amount changed. Apply the code again and review your order.');
           }
 
           // Stock updates and order creation belong to the same
@@ -338,7 +360,8 @@ async function createOrder(
               paymentStatus: 'SIMULATED_PAID',
               currency: 'INR',
               subtotalPaise,
-              totalPaise: subtotalPaise,
+              ...discountSnapshot,
+              totalPaise: subtotalPaise - discountSnapshot.discountPaise,
               ...input.delivery,
 
               items: {
@@ -386,6 +409,38 @@ async function createOrder(
   throw new Error('Order transaction could not be completed.');
 }
 
+const quoteSchema = z.strictObject({
+  discountCode: discountCodeSchema,
+  items: z.array(checkoutItemSchema).min(1).max(100)
+    .refine((items) => new Set(items.map((item) => item.productId)).size === items.length),
+});
+
+// Quote the authenticated account cart without reserving stock or creating an order.
+ordersRouter.post('/quote', async (request, response: Response<unknown, AuthLocals>) => {
+  if (!request.is('application/json')) {
+    response.status(415).json({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Send application/json.' } }); return;
+  }
+  const parsed = quoteSchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'Provide a valid discount code and cart items.' } }); return;
+  }
+  try {
+    const quote = await prisma.$transaction(async (transaction) => {
+      const { subtotalPaise } = await validateCart(transaction, response.locals.userId, parsed.data.items);
+      const discount = await transaction.discount.findUnique({ where: { code: parsed.data.discountCode } });
+      const snapshot = calculateDiscount(discount, subtotalPaise, Date.now());
+      return { ...snapshot, subtotalPaise, totalPaise: subtotalPaise - snapshot.discountPaise };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+    response.json({ quote });
+  } catch (error) {
+    if (error instanceof CheckoutError || error instanceof DiscountError) {
+      response.status(error instanceof CheckoutError ? error.status : 409)
+        .json({ error: { code: error.code, message: error.message } }); return;
+    }
+    response.status(503).json({ error: { code: 'QUOTE_UNAVAILABLE', message: 'The discount could not be checked. Please try again.' } });
+  }
+});
+
 // Place an order using the authenticated customer's cart.
 ordersRouter.post(
   '/',
@@ -430,6 +485,9 @@ ordersRouter.post(
           order: toPublicOrder(resultOrder.order),
         });
     } catch (error) {
+      if (error instanceof DiscountError) {
+        response.status(409).json({ error: { code: error.code, message: error.message } }); return;
+      }
       if (error instanceof CheckoutError) {
         response.status(error.status).json({
           error: {
@@ -478,6 +536,7 @@ ordersRouter.get(
           currency: true,
           totalPaise: true,
           createdAt: true,
+          cancelledAt: true,
           items: {
             select: {
               quantity: true,
@@ -494,6 +553,7 @@ ordersRouter.get(
           currency: order.currency,
           totalPaise: order.totalPaise,
           createdAt: order.createdAt,
+          cancelledAt: order.cancelledAt,
           itemCount: order.items.reduce(
             (total, item) => total + item.quantity,
             0,
@@ -557,3 +617,21 @@ ordersRouter.get(
     }
   },
 );
+
+ordersRouter.post('/:orderId/cancel', async (request, response: Response<unknown, AuthLocals>) => {
+  if (!request.is('application/json')) {
+    response.status(415).json({ error: { code: 'UNSUPPORTED_MEDIA_TYPE', message: 'Send application/json with an empty object.' } }); return;
+  }
+  if (!z.uuid().safeParse(request.params.orderId).success || !z.strictObject({}).safeParse(request.body).success) {
+    response.status(400).json({ error: { code: 'INVALID_CANCELLATION', message: 'Provide a valid order ID and an empty JSON object.' } }); return;
+  }
+  try {
+    const order = await cancelCustomerOrder(response.locals.userId, request.params.orderId);
+    response.json({ order: toPublicOrder(order) });
+  } catch (error) {
+    if (error instanceof CancellationError) {
+      response.status(error.status).json({ error: { code: error.code, message: error.message } }); return;
+    }
+    response.status(503).json({ error: { code: 'CANCELLATION_UNCONFIRMED', message: 'Cancellation could not be confirmed. Retry cancellation for this same order to check the outcome.' } });
+  }
+});

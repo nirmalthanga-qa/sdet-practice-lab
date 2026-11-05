@@ -34,7 +34,7 @@ export default function OrderSpendingChart({
   const id = useId();
   const [metric, setMetric] = useState<ChartMetric>('spending');
 
-  const data = buildOrderChartData(orders);
+  const data = buildOrderChartData(orders.filter((order) => order.status === 'CONFIRMED'));
   const isSpending = metric === 'spending';
 
   const headingId = `${id}-heading`;
@@ -73,13 +73,13 @@ export default function OrderSpendingChart({
       <h2 id={headingId}>Your purchase activity</h2>
 
       <p className="field-help">
-        Daily totals from your latest 50 orders, grouped using your
+        Daily totals from confirmed orders within your latest 50 orders, grouped using your
         browser’s timezone. Older orders may be excluded. All spending
-        is simulated.
+        is simulated. Cancelled orders are excluded.
       </p>
 
       {data.length === 0 ? (
-        <p>Your chart will appear after your first order.</p>
+        <p>Your chart appears when you have a confirmed order in this list.</p>
       ) : (
         <>
           <div className="category-field order-chart-control">

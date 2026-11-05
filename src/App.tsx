@@ -1,3 +1,4 @@
+import AdminDiscountsPage from "./pages/AdminDiscountsPage";
 import { Link, Route, Routes } from "react-router";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -18,6 +19,9 @@ import OrdersPage from "./pages/OrdersPage";
 import RouteFocus from "./components/RouteFocus";
 import BackToTop from "./components/BackToTop";
 
+import WishlistPage from "./pages/WishlistPage";
+import WishlistStatus from "./components/WishlistStatus";
+
 function App() {
   return (
     <>
@@ -30,8 +34,11 @@ function App() {
 
       <main id="main-content" tabIndex={-1}>
         <GuestCartTransfer />
+        <WishlistStatus />
 
         <Routes>
+          <Route path="/wishlist" element={<RequireAuth><WishlistPage /></RequireAuth>} />
+          <Route path="/admin/discounts" element={<RequireAuth><AdminDiscountsPage /></RequireAuth>} />
           <Route
             path="/admin/inventory"
             element={

@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import CancelOrderButton from '../components/CancelOrderButton';
+import { useCart } from '../hooks/useCart';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { getOrder, OrderApiError } from '../api/orders';
 import type { Order } from '../types/order';
@@ -28,6 +30,8 @@ function receiptText(order: Order) {
     'SDET Practice Lab | Order receipt',
     'Simulated payment. No money was charged.',
     'Order: ' + order.id,
+    'Status: ' + (order.status === 'CANCELLED' ? 'Cancelled' : 'Confirmed'),
+    ...(order.cancelledAt ? ['Cancelled: ' + dateFormatter.format(new Date(order.cancelledAt))] : []),
     'Placed: ' + dateFormatter.format(new Date(order.createdAt)),
     '',
     ...order.items.map((item) =>
@@ -35,6 +39,8 @@ function receiptText(order: Order) {
       amount(item.unitPricePaise) + ' = ' + amount(item.lineTotalPaise),
     ),
     '',
+    'Subtotal: ' + amount(order.subtotalPaise),
+    ...(order.discountCode ? ['Discount (' + order.discountCode + '): -' + amount(order.discountPaise)] : []),
     'Total: ' + amount(order.totalPaise),
     '',
   ].join('\n');
@@ -62,6 +68,9 @@ function OrderDetails({ orderId }: { orderId: string }) {
   const [state, setState] = useState<OrderState>({
     status: 'loading',
   });
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const { retryCatalogue } = useCart();
+  const [cancellationMessage, setCancellationMessage] = useState('');
   const [params] = useSearchParams();
   const preview = params.get('view') === 'print';
   const [requestVersion, setRequestVersion] = useState(0);
@@ -190,10 +199,11 @@ function OrderDetails({ orderId }: { orderId: string }) {
       <div className="shop-heading">
         <p className="eyebrow">YOUR ORDER</p>
 
-        <h1 id="order-details-title">{preview ? 'Order receipt' : 'Order confirmed.'}</h1>
+        <h1 id="order-details-title" ref={headingRef} tabIndex={-1}>{preview ? 'Order receipt' : order.status === 'CANCELLED' ? 'Order cancelled.' : 'Order confirmed.'}</h1>
+        <p className="refresh-status" role="status">{cancellationMessage}</p>
 
         <p className="hero-description">
-          Your practice order has been saved.
+          {order.status === 'CANCELLED' ? 'This order was cancelled. Original purchase details are retained below.' : 'Your practice order has been saved.'}
         </p>
 
         <p className="sample-data-note">
@@ -218,7 +228,8 @@ function OrderDetails({ orderId }: { orderId: string }) {
               </dd>
 
               <dt>Status</dt>
-              <dd>Confirmed</dd>
+              <dd>{order.status === 'CANCELLED' ? 'Cancelled' : 'Confirmed'}</dd>
+              {order.cancelledAt && <><dt>Cancelled on</dt><dd><time dateTime={order.cancelledAt}>{dateFormatter.format(new Date(order.cancelledAt))}</time></dd></>}
 
               <dt>Payment</dt>
               <dd>Simulated payment completed</dd>
@@ -283,6 +294,8 @@ function OrderDetails({ orderId }: { orderId: string }) {
             ))}
           </ul>
 
+          <div className="order-summary-total"><span>Subtotal</span><strong>{currencyFormatter.format(order.subtotalPaise / 100)}</strong></div>
+          {order.discountCode && <div className="order-summary-total"><span>Discount ({order.discountCode})</span><strong>−{currencyFormatter.format(order.discountPaise / 100)}</strong></div>}
           <div className="order-summary-total">
             <span>Total</span>
 
@@ -299,6 +312,11 @@ function OrderDetails({ orderId }: { orderId: string }) {
       </div>
 
       <div className="cart-actions">
+        {!preview && order.status === 'CONFIRMED' && <CancelOrderButton orderId={order.id} onCancelled={(cancelled) => {
+          setState({ status: 'success', order: cancelled });
+          setCancellationMessage('Order cancelled successfully. Existing product stock has been restored.');
+          retryCatalogue(); headingRef.current?.focus();
+        }} />}
         {preview ? (
           <button className="primary-link" type="button" onClick={() => window.print()}>
             Print receipt

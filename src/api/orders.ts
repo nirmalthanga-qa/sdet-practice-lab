@@ -1,5 +1,7 @@
 import type {
   CheckoutRequest,
+  CheckoutItem,
+  DiscountQuote,
   Order,
   OrderItem,
   OrderSummary,
@@ -82,9 +84,11 @@ function isOrder(value: unknown): value is Order {
   if (
     !isRecord(value) ||
     !isNonEmptyString(value.id) ||
-    value.status !== 'CONFIRMED' ||
+    (value.status !== 'CONFIRMED' && value.status !== 'CANCELLED') ||
+    (value.status === 'CANCELLED' ? !isDateString(value.cancelledAt) : value.cancelledAt !== null) ||
     value.paymentStatus !== 'SIMULATED_PAID' ||
     value.currency !== 'INR' ||
+    !isNonNegativeInteger(value.discountPaise) ||
     !isNonNegativeInteger(value.subtotalPaise) ||
     !isNonNegativeInteger(value.totalPaise) ||
     !isDateString(value.createdAt) ||
@@ -109,7 +113,13 @@ function isOrder(value: unknown): value is Order {
     productIds.size === value.items.length &&
     Number.isSafeInteger(calculatedSubtotal) &&
     calculatedSubtotal === value.subtotalPaise &&
-    value.totalPaise === value.subtotalPaise
+    value.discountPaise <= value.subtotalPaise &&
+    value.totalPaise === value.subtotalPaise - value.discountPaise &&
+    (value.discountCode === null
+      ? value.discountType === null && value.discountValue === null && value.discountPaise === 0
+      : isNonEmptyString(value.discountCode) && isPositiveInteger(value.discountValue) &&
+        ((value.discountType === 'PERCENTAGE' && value.discountValue <= 100 && value.discountPaise === Math.floor(value.subtotalPaise * value.discountValue / 100)) ||
+         (value.discountType === 'FIXED' && value.discountPaise === Math.min(value.subtotalPaise, value.discountValue))))
   );
 }
 
@@ -117,7 +127,8 @@ function isOrderSummary(value: unknown): value is OrderSummary {
   return (
     isRecord(value) &&
     isNonEmptyString(value.id) &&
-    value.status === 'CONFIRMED' &&
+    (value.status === 'CONFIRMED' || value.status === 'CANCELLED') &&
+    (value.status === 'CANCELLED' ? isDateString(value.cancelledAt) : value.cancelledAt === null) &&
     value.paymentStatus === 'SIMULATED_PAID' &&
     value.currency === 'INR' &&
     isNonNegativeInteger(value.totalPaise) &&
@@ -276,4 +287,34 @@ export async function getOrders(
   }
 
   return data.orders;
+}
+
+export async function quoteDiscount(discountCode: string, items: CheckoutItem[], signal: AbortSignal): Promise<DiscountQuote> {
+  const response = await fetch('/api/orders/quote', {
+    method: 'POST', credentials: 'same-origin', signal,
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discountCode, items }),
+  });
+  if (!response.ok) throw await createResponseError(response);
+  const body: unknown = await readJson(response);
+  if (!isRecord(body) || !isRecord(body.quote)) throw new Error('Invalid discount quote. Please try again.');
+  const quote = body.quote;
+  const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPricePaise, 0);
+  if (quote.discountCode !== discountCode || !isNonNegativeInteger(quote.discountPaise) ||
+    !isNonNegativeInteger(quote.subtotalPaise) || quote.subtotalPaise !== subtotal || quote.discountPaise > subtotal ||
+    !isNonNegativeInteger(quote.totalPaise) || quote.totalPaise !== subtotal - quote.discountPaise)
+    throw new Error('Invalid discount quote. Please try again.');
+  return { discountCode, discountPaise: quote.discountPaise, subtotalPaise: quote.subtotalPaise, totalPaise: quote.totalPaise };
+}
+
+
+export async function cancelOrder(orderId: string, signal?: AbortSignal): Promise<Order> {
+  const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/cancel`, {
+    method: 'POST', credentials: 'same-origin', signal,
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}),
+  });
+  if (!response.ok) throw await createResponseError(response);
+  const order = await readOrder(response);
+  if (order.id !== orderId || order.status !== 'CANCELLED')
+    throw new OrderApiError('Cancellation could not be confirmed. Retry for this same order.', response.status, 'INVALID_ORDER_RESPONSE');
+  return order;
 }

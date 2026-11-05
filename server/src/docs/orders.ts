@@ -96,7 +96,7 @@ const orderProperties = {
   },
   status: {
     type: 'string',
-    enum: ['CONFIRMED'],
+    enum: ['CONFIRMED', 'CANCELLED'],
   },
   paymentStatus: {
     type: 'string',
@@ -107,6 +107,7 @@ const orderProperties = {
     enum: ['INR'],
   },
   totalPaise: moneySchema,
+  cancelledAt: { type: 'string', format: 'date-time', nullable: true, description: 'Null while confirmed; saved timestamp after cancellation.' },
   createdAt: {
     type: 'string',
     format: 'date-time',
@@ -201,6 +202,8 @@ export const orderSchemas = {
       'items',
     ],
     properties: {
+      discountCode: { type: 'string', description: 'Optional applied code. Supply expectedDiscountPaise with it. Normalized to uppercase.' },
+      expectedDiscountPaise: { ...moneySchema, description: 'Amount from POST /orders/quote. Required with discountCode; rechecked at placement.' },
       checkoutId: {
         type: 'string',
         format: 'uuid',
@@ -267,13 +270,19 @@ export const orderSchemas = {
       'status',
       'paymentStatus',
       'currency',
+      'discountCode', 'discountType', 'discountValue', 'discountPaise',
       'subtotalPaise',
       'totalPaise',
       'createdAt',
+      'cancelledAt',
       'delivery',
       'items',
     ],
     properties: {
+      discountCode: { type: 'string', nullable: true, description: 'Code snapshot; null for orders without a discount.' },
+      discountType: { type: 'string', enum: ['PERCENTAGE', 'FIXED'], nullable: true },
+      discountValue: { type: 'integer', nullable: true, description: 'Saved percentage or fixed amount in paise.' },
+      discountPaise: { ...moneySchema, description: 'Saved discount amount. Total equals subtotal minus discountPaise.' },
       ...orderProperties,
       subtotalPaise: moneySchema,
       delivery: {
@@ -298,6 +307,7 @@ export const orderSchemas = {
       'currency',
       'totalPaise',
       'createdAt',
+      'cancelledAt',
       'itemCount',
     ],
     properties: {
@@ -342,6 +352,265 @@ export const orderSchemas = {
 };
 
 export const orderPaths = {
+  "/orders/{orderId}/cancel": {
+  "post": {
+    "tags": [
+      "Orders"
+    ],
+    "operationId": "cancelCustomerOrder",
+    "summary": "Cancel your own order and restore stock once",
+    "description": "All confirmed practice orders are cancellable. The transaction cancels the entire order and restores stock to existing product IDs only. Missing products are not recreated. Repeating cancellation returns 200 without restoring stock again. Other customers receive 404. Price and discount snapshots are retained; payment remains simulated.",
+    "security": [
+      {
+        "sessionCookie": []
+      }
+    ],
+    "parameters": [
+      {
+        "name": "orderId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "additionalProperties": false
+          },
+          "example": {}
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Cancelled order, including repeated requests.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "order"
+              ],
+              "properties": {
+                "order": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid order ID or body.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Sign in required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "Order not found or not owned by this user.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "409": {
+        "description": "Order cannot be cancelled or restocking would exceed the stock limit; all changes roll back.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "415": {
+        "description": "JSON required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Cancellation unconfirmed. Retry the same order.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      }
+    }
+  }
+},
+  "/orders/quote": {
+  "post": {
+    "tags": [
+      "Orders"
+    ],
+    "operationId": "quoteCheckoutDiscount",
+    "summary": "Validate a discount against the current account cart",
+    "description": "Does not reserve stock or place an order. Percentages round down to a whole paise. Fixed discounts are capped at subtotal. Minimum spend is inclusive; expiry is exclusive. Revalidated on order placement.",
+    "security": [
+      {
+        "sessionCookie": []
+      }
+    ],
+    "requestBody": {
+      "required": true,
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "discountCode",
+              "items"
+            ],
+            "properties": {
+              "discountCode": {
+                "type": "string",
+                "minLength": 3,
+                "maxLength": 32
+              },
+              "items": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 100,
+                "items": {
+                  "$ref": "#/components/schemas/CheckoutItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "200": {
+        "description": "Server-calculated quote. Send discountCode and discountPaise as expectedDiscountPaise when placing the order.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "quote"
+              ],
+              "properties": {
+                "quote": {
+                  "type": "object",
+                  "required": [
+                    "discountCode",
+                    "discountPaise",
+                    "subtotalPaise",
+                    "totalPaise"
+                  ],
+                  "properties": {
+                    "discountCode": {
+                      "type": "string"
+                    },
+                    "discountPaise": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "subtotalPaise": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "totalPaise": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 2147483647
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "400": {
+        "description": "Invalid code/items or order value out of range.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Sign in required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "409": {
+        "description": "Cart, prices, stock or discount invalid; includes DISCOUNT_UNAVAILABLE and DISCOUNT_MINIMUM_NOT_MET.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "415": {
+        "description": "JSON required.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Unable to calculate quote.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ApiError"
+            }
+          }
+        }
+      }
+    }
+  }
+},
   '/orders': {
     post: {
       tags: ['Orders'],
@@ -354,7 +623,9 @@ export const orderPaths = {
         'Stock is reduced, the order is saved and purchased cart items',
         'are removed in one transaction.',
         'No real payment, delivery fee or additional tax is charged.',
-        'Total equals subtotal.',
+        'Total equals subtotal minus the server-calculated discount. Only one discount code is supported.',
+        'The code must be active, unexpired and meet its minimum subtotal when this transaction validates it.',
+        'Percentage discounts round down to paise; fixed amounts are capped at subtotal.',
         'A matching retry returns the existing order before checking the cart.',
         'Reusing a completed checkout ID with different normalized details',
         'returns a conflict. Item array order does not affect matching.',
@@ -432,7 +703,7 @@ export const orderPaths = {
 
         '409': {
           description:
-            'Checkout conflicts with saved request details or current cart, price or stock state.',
+            'Checkout conflicts with saved request details or current cart, price, stock or discount state. Discount conflicts use DISCOUNT_UNAVAILABLE, DISCOUNT_MINIMUM_NOT_MET or DISCOUNT_CHANGED.',
           content: {
             'application/json': {
               schema: {

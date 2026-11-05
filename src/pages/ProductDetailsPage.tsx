@@ -1,3 +1,4 @@
+import WishlistButton from '../components/WishlistButton';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { useCart } from '../hooks/useCart';
@@ -194,6 +195,8 @@ function ProductDetails({ productId }: { productId: string }) {
             quantityInCart={quantityInCart}
             onAddToCart={addToCart}
           />
+
+        <WishlistButton product={product} />
 
           <Link className="primary-link" to="/shop">
             Continue shopping

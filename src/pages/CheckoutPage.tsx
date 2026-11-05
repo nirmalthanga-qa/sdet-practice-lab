@@ -1,3 +1,6 @@
+import CheckoutDiscount from '../components/CheckoutDiscount';
+import type { AppliedDiscount } from '../components/CheckoutDiscount';
+import { checkoutItemsKey } from '../types/order';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router';
@@ -107,7 +110,10 @@ function isSavedCheckout(value: unknown): value is CheckoutRequest {
     !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(
       value.checkoutId,
     ) ||
-    value.paymentMethod !== 'simulated'
+    value.paymentMethod !== 'simulated' ||
+    (value.discountCode !== undefined && (typeof value.discountCode !== 'string' || !/^[A-Z0-9][A-Z0-9-]{2,31}$/.test(value.discountCode))) ||
+    (value.discountCode === undefined) !== (value.expectedDiscountPaise === undefined) ||
+    (value.expectedDiscountPaise !== undefined && (typeof value.expectedDiscountPaise !== 'number' || !Number.isSafeInteger(value.expectedDiscountPaise) || value.expectedDiscountPaise < 0))
   ) {
     return false;
   }
@@ -151,6 +157,9 @@ function isSavedCheckout(value: unknown): value is CheckoutRequest {
 
     productIds.add(item.productId);
   }
+  const subtotal = value.items.reduce((sum: number, item: { quantity: number; unitPricePaise: number }) => sum + item.quantity * item.unitPricePaise, 0);
+  if (!Number.isSafeInteger(subtotal) || subtotal > 2_147_483_647 ||
+    (typeof value.expectedDiscountPaise === 'number' && value.expectedDiscountPaise > subtotal)) return false;
 
   return true;
 }
@@ -210,8 +219,14 @@ function CustomerCheckout({ userId }: { userId: string }) {
     retryCatalogue,
     canCheckout,
     isCartSaving,
+    isCartRefreshing,
   } = useCart();
 
+  const [isCheckingDiscount, setIsCheckingDiscount] = useState(false);
+  const [discountQuote, setDiscountQuote] = useState<AppliedDiscount | null>(null);
+  const currentItems = cartProducts.map(({ product, quantity }) => ({ productId: product.id, quantity, unitPricePaise: product.pricePaise }));
+  const itemsKey = checkoutItemsKey(currentItems);
+  const appliedDiscount = discountQuote?.itemsKey === itemsKey ? discountQuote : null;
   const storageKey = `sdet-checkout-v1:${userId}`;
 
   const [saved] = useState(() => loadPendingCheckout(storageKey));
@@ -246,7 +261,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
   function handleReview(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!canCheckout || submittingRef.current || pending) {
+    if (!canCheckout || isCheckingDiscount || (discountQuote && !appliedDiscount) || submittingRef.current || pending) {
       return;
     }
 
@@ -279,6 +294,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
     setReview({
       checkoutId: crypto.randomUUID(),
       paymentMethod: 'simulated',
+      ...(appliedDiscount ? { discountCode: appliedDiscount.discountCode, expectedDiscountPaise: appliedDiscount.discountPaise } : {}),
       delivery: {
         fullName: details.fullName.trim(),
         email: details.email.trim().toLowerCase(),
@@ -301,7 +317,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
 
     const request = pending ?? review;
 
-    if (!request || (!pending && !canCheckout)) {
+    if (!request || (!pending && (!canCheckout || isCheckingDiscount || (discountQuote && !appliedDiscount)))) {
       return;
     }
 
@@ -338,6 +354,9 @@ function CustomerCheckout({ userId }: { userId: string }) {
       );
     } catch (error) {
       const rejectedCodes = new Set([
+        'DISCOUNT_UNAVAILABLE',
+        'DISCOUNT_MINIMUM_NOT_MET',
+        'DISCOUNT_CHANGED',
         'VALIDATION_ERROR',
         'CART_EMPTY',
         'CART_CHANGED',
@@ -386,6 +405,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
       return;
     }
 
+    setDiscountQuote(null);
     setPending(null);
     setReview(null);
     setMessage('');
@@ -405,7 +425,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
   // Pending requests remain recoverable even if an earlier successful
   // request emptied the cart before its response reached the browser.
   if (!pending) {
-    if (catalogueState.status === 'loading' || isCartSaving) {
+    if (catalogueState.status === 'loading') {
       return (
         <section className="shop-section">
           <h1>Preparing checkout</h1>
@@ -432,7 +452,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
       );
     }
 
-    if (cartCount === 0 || !canCheckout) {
+    if (!isCartRefreshing && !isCartSaving && (cartCount === 0 || !canCheckout)) {
       return (
         <section className="shop-section">
           <h1>
@@ -458,6 +478,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
       className="shop-section"
       aria-labelledby="checkout-title"
     >
+      <p className="refresh-status" role="status">{isCartRefreshing || isCartSaving ? 'Updating cart availability…' : ''}</p>
       <div className="shop-heading">
         <p className="eyebrow">CHECKOUT</p>
         <h1 id="checkout-title">Complete your practice order.</h1>
@@ -548,7 +569,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
             <button
               className="primary-link checkout-submit"
               type="submit"
-              disabled={!canCheckout}
+              disabled={!canCheckout || isCheckingDiscount || Boolean(discountQuote && !appliedDiscount)}
             >
               Review order
             </button>
@@ -561,7 +582,9 @@ function CustomerCheckout({ userId }: { userId: string }) {
           </form>
 
           <div>
-            <OrderSummary />
+            <CheckoutDiscount items={currentItems} disabled={!canCheckout || isSubmitting}
+              applied={discountQuote} onBusyChange={setIsCheckingDiscount} onChange={(quote) => { setDiscountQuote(quote); setReview(null); setMessage(''); }} />
+            <OrderSummary discount={appliedDiscount} />
             <DeliveryHelp />
           </div>
         </div>
@@ -597,15 +620,15 @@ function CustomerCheckout({ userId }: { userId: string }) {
             ))}
           </ul>
 
+          <p className="order-summary-total"><span>Subtotal</span><strong>{currencyFormatter.format(checkout.items.reduce((sum, item) => sum + item.unitPricePaise * item.quantity, 0) / 100)}</strong></p>
+          {checkout.discountCode && <p className="order-summary-total"><span>Discount ({checkout.discountCode})</span><strong>−{currencyFormatter.format((checkout.expectedDiscountPaise ?? 0) / 100)}</strong></p>}
           <p className="order-summary-total">
             <span>Total</span>
             <strong>
               {currencyFormatter.format(
-                checkout.items.reduce(
-                  (total, item) =>
-                    total + item.unitPricePaise * item.quantity,
-                  0,
-                ) / 100,
+                (checkout.items.reduce(
+                  (total, item) => total + item.unitPricePaise * item.quantity, 0,
+                ) - (checkout.expectedDiscountPaise ?? 0)) / 100,
               )}
             </strong>
           </p>
@@ -615,7 +638,7 @@ function CustomerCheckout({ userId }: { userId: string }) {
               <button
                 className="primary-link checkout-submit"
                 type="button"
-                disabled={isSubmitting}
+                disabled={isSubmitting || (!pending && (!canCheckout || isCheckingDiscount || Boolean(discountQuote && !appliedDiscount)))}
                 onClick={() => void handlePlaceOrder()}
               >
                 {isSubmitting

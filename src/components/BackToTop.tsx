@@ -1,6 +1,26 @@
+import { useSyncExternalStore } from 'react';
+
+function subscribeToScroll(callback: () => void) {
+  window.addEventListener('scroll', callback, { passive: true });
+  return () => window.removeEventListener('scroll', callback);
+}
+
+function isPastScrollThreshold() {
+  return window.scrollY > 300;
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
 export default function BackToTop() {
+  const visible = useSyncExternalStore(
+    subscribeToScroll,
+    isPastScrollThreshold,
+    getServerSnapshot,
+  );
   function handleBackToTop() {
-    const target = document.getElementById("page-top");
+    const target = document.getElementById("main-content");
 
     target?.focus({ preventScroll: true });
 
@@ -10,6 +30,8 @@ export default function BackToTop() {
       behavior: "instant",
     });
   }
+
+  if (!visible) return null;
 
   return (
     <div className="back-to-top-container">

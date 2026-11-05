@@ -70,7 +70,7 @@ export default function AdminInventoryPage() {
   }, [version]);
 
   return (
-    <section className="shop-section" aria-labelledby="inventory-title">
+    <section className="shop-section admin-inventory-page" aria-labelledby="inventory-title">
       <h1 id="inventory-title" ref={headingRef} tabIndex={-1}>Admin inventory</h1>
       <p role="status" aria-atomic="true">{deletionMessage}</p>
       {state.status === 'ready' && <InventoryCsvPreview onSaved={() => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 export type Category = { name: string };
 export function isCategory(value: unknown): value is Category {
   return typeof value === 'object' && value !== null && 'name' in value &&
@@ -7,6 +7,10 @@ export function isCategory(value: unknown): value is Category {
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState('');
+  const loadedRef = useRef(false);
+  const refreshingRef = useRef(false);
   const [version, setVersion] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -18,11 +22,23 @@ export function useCategories() {
         if (typeof data !== 'object' || data === null || !('categories' in data) ||
           !Array.isArray(data.categories) || !data.categories.every(isCategory) ||
           new Set(data.categories.map((category) => category.name)).size !== data.categories.length) throw new Error('Invalid categories');
-        if (!controller.signal.aborted) { setCategories(data.categories); setStatus('ready'); }
-      } catch { if (!controller.signal.aborted) setStatus('error'); }
+        if (!controller.signal.aborted) { loadedRef.current = true; setCategories(data.categories); setStatus('ready'); setRefreshError(''); }
+      } catch {
+        if (!controller.signal.aborted) {
+          if (!loadedRef.current) setStatus('error');
+          setRefreshError('Categories could not be refreshed. Previously loaded choices remain available.');
+        }
+      } finally {
+        if (!controller.signal.aborted) { refreshingRef.current = false; setRefreshing(false); }
+      }
     }
     void load(); return () => controller.abort();
   }, [version]);
-  function reload() { setStatus('loading'); setVersion((current) => current + 1); }
-  return { categories, status, reload };
+  function reload() {
+    if (refreshingRef.current) return;
+    refreshingRef.current = true; setRefreshing(true); setRefreshError('');
+    if (!loadedRef.current) setStatus('loading');
+    setVersion((current) => current + 1);
+  }
+  return { categories, status, refreshing, refreshError, reload };
 }

@@ -150,7 +150,7 @@ export default function OrdersPage() {
                                     <dl className="order-history-facts">
                                         <div>
                                             <dt>Status</dt>
-                                            <dd>Confirmed</dd>
+                                            <dd>{order.status === 'CANCELLED' ? 'Cancelled' : 'Confirmed'}</dd>
                                         </div>
 
                                         <div>

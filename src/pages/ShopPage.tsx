@@ -30,11 +30,11 @@ const currencyFormatter = new Intl.NumberFormat('en-IN', {
 });
 
 const priceStepPaise = 10_000;
-const pageSizes = [3, 6, 9];
+const pageSizes = [4, 8, 12, 16, 20];
 const comparisonLimit = 3;
 
 export default function ShopPage() {
-  const { categories, status: categoryStatus, reload: reloadCategories } = useCategories();
+  const { categories, status: categoryStatus, refreshing: categoriesRefreshing, refreshError: categoryRefreshError, reload: reloadCategories } = useCategories();
   const [productsState, setProductsState] =
     useState<ProductsState>({ status: 'loading' });
   const [requestVersion, setRequestVersion] = useState(0);
@@ -48,7 +48,7 @@ export default function ShopPage() {
     null,
   );
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [pageSize, setPageSize] = useState(6);
+  const [pageSize, setPageSize] = useState(8);
   const [requestedPage, setRequestedPage] = useState(1);
   const [comparisonIds, setComparisonIds] = useState<string[]>([]);
 
@@ -57,6 +57,7 @@ export default function ShopPage() {
     cartCount,
     cartProducts,
     isCartSaving,
+    isCartRefreshing,
     addToCart,
     updateCartQuantity,
     removeFromCart,
@@ -343,7 +344,7 @@ export default function ShopPage() {
         role="status"
         aria-atomic="true"
       >
-        {isCartSaving ? 'Updating your cart…' : ''}
+        {isCartSaving || isCartRefreshing ? 'Updating your cart…' : ''}
       </p>
 
       <div hidden={!isCartOpen}>
@@ -414,9 +415,9 @@ export default function ShopPage() {
                   <option key={category.name} value={category.name}>{category.name}</option>
                 ))}
               </select>
-              <p role="status">{categoryStatus === 'loading' ? 'Loading categories…' : ''}</p>
-              {categoryStatus === 'error' && <>
-                <p role="alert">Categories are unavailable.</p>
+              <p className="refresh-status" role="status">{categoryStatus === 'loading' ? 'Loading categories…' : categoriesRefreshing ? 'Refreshing categories…' : ''}</p>
+              {categoryRefreshError && <>
+                <p role="alert">{categoryRefreshError}</p>
                 <button className="clear-search-button" type="button" onClick={reloadCategories}>Retry categories</button>
               </>}
             </div>

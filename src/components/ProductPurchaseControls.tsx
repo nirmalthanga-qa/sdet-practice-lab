@@ -22,6 +22,7 @@ export default function ProductPurchaseControls({
     retryCatalogue,
     canEditCart,
     isCartSaving,
+    isCartRefreshing,
   } = useCart();
 
   const cartProduct =
@@ -87,7 +88,7 @@ export default function ProductPurchaseControls({
         type="button"
         disabled={!canAdd || !canEditCart}
         data-cart-saving={
-          isCartSaving && canAdd ? 'true' : undefined
+          (isCartSaving || isCartRefreshing) && canAdd ? 'true' : undefined
         }
         aria-label={`${buttonLabel}: ${product.name}`}
         onClick={() => {

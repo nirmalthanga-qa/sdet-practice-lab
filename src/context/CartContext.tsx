@@ -5,7 +5,7 @@ import type { Product } from '../types/product';
 
 export type CartCatalogueState =
   | { status: 'loading' }
-  | { status: 'success'; products: Product[] }
+  | { status: 'success'; products: Product[]; refreshing?: boolean }
   | { status: 'error'; message: string };
 
 type CartContextValue = ReturnType<typeof useStoredCart> & {

@@ -24,8 +24,10 @@ export function useCart() {
 
   const isCartSaving = customerCart?.isSaving ?? false;
 
+  const isCartRefreshing = (catalogueState.status === 'success' && Boolean(catalogueState.refreshing)) || Boolean(customerCart?.isReloading);
+
   const canEditCart =
-    catalogueState.status === 'success' &&
+    catalogueState.status === 'success' && !isCartRefreshing &&
     (customerCart === null || customerCart.canEdit);
 
   const cartCount = cartItems.reduce(
@@ -185,6 +187,7 @@ export function useCart() {
     canCheckout,
     canEditCart,
     isCartSaving,
+    isCartRefreshing,
     addToCart,
     updateCartQuantity,
     removeFromCart,

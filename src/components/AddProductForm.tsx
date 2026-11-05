@@ -16,7 +16,7 @@ const fields = [
 ] as const;
 
 export default function AddProductForm({ onCreated }: Props) {
-  const { categories, status: categoryStatus, reload: reloadCategories } = useCategories();
+  const { categories, status: categoryStatus, refreshing: categoriesRefreshing, refreshError: categoryRefreshError, reload: reloadCategories } = useCategories();
   const [values, setValues] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -78,9 +78,9 @@ export default function AddProductForm({ onCreated }: Props) {
       <CreateCategoryForm onCreated={(name) => {
         setValues((current) => ({ ...current, category: name })); reloadCategories();
       }} />
-      <p role="status">{categoryStatus === 'loading' ? 'Loading categories…' : ''}</p>
-      {categoryStatus === 'error' && <p role="alert">Categories could not be loaded. Reload to try again.</p>}
-      <button className="clear-search-button" type="button" disabled={busy || categoryStatus === 'loading'} onClick={reloadCategories}>Reload categories</button>
+      <div className="admin-feedback"><p className="refresh-status" role="status">{categoryStatus === 'loading' ? 'Loading categories…' : categoriesRefreshing ? 'Refreshing categories…' : ''}</p>
+      <p className="refresh-status field-error" role="alert">{categoryRefreshError}</p></div>
+      <button className="clear-search-button" type="button" aria-disabled={busy || categoryStatus === 'loading' || categoriesRefreshing} onClick={() => { if (!busy && categoryStatus !== 'loading' && !categoriesRefreshing) reloadCategories(); }}>Reload categories</button>
       <form className="checkout-form" aria-busy={busy} onSubmit={(event) => {
         event.preventDefault(); void createProduct();
       }}>
@@ -117,8 +117,8 @@ export default function AddProductForm({ onCreated }: Props) {
           </div>
           <button className="primary-link checkout-submit" type="submit" disabled={categoryStatus !== 'ready'}>{busy ? 'Creating…' : 'Create product'}</button>
         </fieldset>
-        <p role="status" aria-atomic="true">{busy ? 'Creating product…' : message}</p>
-        <p role="alert" className="field-error">{error}</p>
+        <div className="admin-feedback"><p role="status" aria-atomic="true">{busy ? 'Creating product…' : message}</p>
+        <p role="alert" className="field-error">{error}</p></div>
       </form>
     </section>
   );
