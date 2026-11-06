@@ -207,17 +207,18 @@ function TransferBanner({ userId }: { userId: string }) {
                 </>
             )}
 
-            <p role="status" aria-atomic="true">
+            <div className="feedback-slot">
+              <p role="status" aria-atomic="true">
                 {isWorking ? 'Transferring your guest items. Please wait.' : message}
             </p>
-
-            <p className="field-error" role="alert" aria-atomic="true">
+              <p className="field-error" role="alert" aria-atomic="true">
                 {localError ||
                     customerCart.mutationError ||
                     (catalogueState.status === 'error'
                         ? catalogueState.message
                         : '')}
             </p>
+            </div>
         </section>
     );
 }

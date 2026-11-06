@@ -229,8 +229,10 @@ function StockEditor({ item }: { item: InventoryItem }) {
         <button type="button" className="clear-search-button" disabled={busy}
           onClick={() => { void submit(true); }}>Reload stock</button>
       </div>
-      <p role="status" aria-atomic="true">{message}</p>
-      <p id={`${inputId}-error`} className="field-error" role="alert">{error}</p>
+      <div className="feedback-slot">
+        <p role="status" aria-atomic="true">{message}</p>
+        <p id={`${inputId}-error`} className="field-error" role="alert">{error}</p>
+      </div>
     </form>
   );
 }

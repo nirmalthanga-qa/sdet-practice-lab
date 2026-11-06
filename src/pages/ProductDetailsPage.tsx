@@ -196,11 +196,10 @@ function ProductDetails({ productId }: { productId: string }) {
             onAddToCart={addToCart}
           />
 
-        <WishlistButton product={product} />
-
-          <Link className="primary-link" to="/shop">
-            Continue shopping
-          </Link>
+          <div className="product-details-actions">
+            <WishlistButton product={product} />
+            <Link className="primary-link" to="/shop">Continue shopping</Link>
+          </div>
         </div>
       </div>
       <DeliveryEstimate />

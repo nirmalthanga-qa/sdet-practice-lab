@@ -23,6 +23,7 @@ export default function ProductComparison({
   return (
     <section
       className="product-comparison"
+      data-product-count={products.length}
       aria-labelledby="comparison-title"
     >
       <div className="comparison-heading">

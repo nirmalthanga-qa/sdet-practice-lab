@@ -54,8 +54,10 @@ export default function DeleteProductButton({ product, onDeleted }: Props) {
         <button className="delete-product-button" type="button" disabled={busy || needsReload}
           onClick={() => { void deleteProduct(); }}>{busy ? 'Deleting…' : 'Yes, delete product'}</button>
       </div>
-      <p role="status" aria-atomic="true">{busy ? 'Deleting product…' : ''}</p>
-      <p role="alert" className="field-error">{error}</p>
+      <div className="feedback-slot">
+        <p role="status" aria-atomic="true">{busy ? 'Deleting product…' : ''}</p>
+        <p role="alert" className="field-error">{error}</p>
+      </div>
     </dialog>
   </>;
 }

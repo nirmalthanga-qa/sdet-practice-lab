@@ -127,8 +127,10 @@ function DiscountManager() {
     <h1 id="discounts-title" ref={headingRef} tabIndex={-1}>Admin discounts</h1>
     <p>Create percentage or fixed-amount codes for customers to apply at checkout.</p>
     <button className="clear-search-button" type="button" aria-disabled={loading || busyCode !== null} onClick={reload}>Reload discounts</button>
-    <p className="refresh-status" role="status" aria-atomic="true">{loading ? loaded ? 'Refreshing discounts…' : 'Loading discounts…' : busyCode ? deleteTarget ? 'Deleting discount…' : 'Saving discount…' : message}</p>
-    <p className="refresh-status field-error" role="alert">{error}{needsReload && ' Reload discounts before making more changes.'}</p>
+    <div className="feedback-slot">
+      <p className="refresh-status" role="status" aria-atomic="true">{loading ? loaded ? 'Refreshing discounts…' : 'Loading discounts…' : busyCode ? deleteTarget ? 'Deleting discount…' : 'Saving discount…' : message}</p>
+      <p className="refresh-status field-error" role="alert">{error}{needsReload && ' Reload discounts before making more changes.'}</p>
+    </div>
 
     <form className="checkout-form discount-create-form" onSubmit={(event) => { event.preventDefault(); void save(); }}>
       <h2>Create discount</h2>
@@ -203,8 +205,10 @@ function DiscountManager() {
         <button className="delete-product-button" type="button" disabled={busyCode !== null || needsReload}
           onClick={() => { void confirmDelete(); }}>{busyCode !== null ? 'Deleting…' : 'Yes, delete discount'}</button>
       </div>
-      <p className="refresh-status" role="status">{busyCode !== null ? 'Deleting discount…' : ''}</p>
-      <p className="refresh-status field-error" role="alert">{deleteError}</p>
+      <div className="feedback-slot">
+        <p className="refresh-status" role="status">{busyCode !== null ? 'Deleting discount…' : ''}</p>
+        <p className="refresh-status field-error" role="alert">{deleteError}</p>
+      </div>
     </dialog>
   </section>;
 }

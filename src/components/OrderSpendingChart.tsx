@@ -19,7 +19,7 @@ const axisFormatter = new Intl.NumberFormat('en-IN', {
 });
 
 const width = 800;
-const height = 360;
+const height = 300;
 
 const margin = {
   top: 24,
@@ -49,7 +49,8 @@ export default function OrderSpendingChart({
   const xScale = scaleBand<string>()
     .domain(data.map((point) => point.date))
     .range([margin.left, width - margin.right])
-    .padding(0.25);
+    .padding(0.4);
+  const barWidth = Math.min(28, xScale.bandwidth());
 
   const maximumValue = max(data, getValue) ?? 0;
 
@@ -174,9 +175,9 @@ export default function OrderSpendingChart({
                 <g key={point.date}>
                   <rect
                     className="order-chart-bar"
-                    x={x}
+                    x={x + (xScale.bandwidth() - barWidth) / 2}
                     y={y}
-                    width={xScale.bandwidth()}
+                    width={barWidth}
                     height={Math.max(0, baseline - y)}
                     rx={2}
                   >

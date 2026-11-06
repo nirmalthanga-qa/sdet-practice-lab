@@ -64,6 +64,19 @@ export const openApiDocument = {
 
   paths: {
     ...wishlistPaths,
+    "/admin/users": { get: {
+      tags: ["Admin users"], security: [{ sessionCookie: [] }], summary: "List registered accounts, newest first",
+      parameters: [{ name: "page", in: "query", schema: { type: "integer", minimum: 1, maximum: 999999, default: 1 } }],
+      responses: { "200": { description: "Returns page, hasNext and up to 20 users with id, fullName, email, createdAt, orderCount and isAdmin." },
+        "400": { description: "Invalid pagination." }, "401": { description: "Sign in required." }, "403": { description: "Admin required." }, "503": { description: "Accounts unavailable." } },
+    } },
+    "/admin/users/{userId}": { delete: {
+      tags: ["Admin users"], security: [{ sessionCookie: [] }], summary: "Permanently delete a customer account, including one with orders",
+      parameters: [{ name: "userId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+      responses: { "204": { description: "Account, sessions, saved cart and wishlist deleted. Orders retain their financial and product history with the account link and delivery details cleared. Stock is unaffected." }, "400": { description: "Invalid ID." },
+        "401": { description: "Sign in required." }, "403": { description: "Admin required." }, "404": { description: "Account missing." },
+        "409": { description: "Protected administrator." }, "503": { description: "Deletion unconfirmed. Reload accounts." } },
+    } },
     ...discountPaths,
     "/admin/products/{productId}": {
   "delete": {

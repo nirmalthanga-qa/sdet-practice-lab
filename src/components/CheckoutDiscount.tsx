@@ -46,8 +46,10 @@ export default function CheckoutDiscount({ items, disabled, applied, onChange, o
         <button className="clear-search-button" type="button" disabled={disabled || (!code && !applied)} onClick={clear}>Remove code</button>
       </div>
     </form>
-    <p className="refresh-status" role="status" aria-atomic="true">{busy ? 'Checking discount…' : current ? `${current.discountCode} applied.` : applied ? 'Your cart changed. Apply the code again.' : 'Apply a code to include it in your order.'}</p>
-    <p className="refresh-status field-error" role="alert">{error}</p>
+    <div className="feedback-slot">
+      <p className="refresh-status" role="status" aria-atomic="true">{busy ? 'Checking discount…' : current ? `${current.discountCode} applied.` : applied ? 'Your cart changed. Apply the code again.' : 'Apply a code to include it in your order.'}</p>
+      <p className="refresh-status field-error" role="alert">{error}</p>
+    </div>
     <p className="field-help">Codes are checked again when placing the order. Only one code per order.</p>
   </section>;
 }

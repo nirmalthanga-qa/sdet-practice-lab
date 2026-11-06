@@ -6,7 +6,7 @@ function subscribeToScroll(callback: () => void) {
 }
 
 function isPastScrollThreshold() {
-  return window.scrollY > 300;
+  return window.scrollY > 0;
 }
 
 function getServerSnapshot() {

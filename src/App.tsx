@@ -1,3 +1,4 @@
+import AdminUsersPage from "./pages/AdminUsersPage";
 import AdminDiscountsPage from "./pages/AdminDiscountsPage";
 import { Link, Route, Routes } from "react-router";
 import Header from "./components/Header";
@@ -38,6 +39,7 @@ function App() {
 
         <Routes>
           <Route path="/wishlist" element={<RequireAuth><WishlistPage /></RequireAuth>} />
+          <Route path="/admin/users" element={<RequireAuth><AdminUsersPage /></RequireAuth>} />
           <Route path="/admin/discounts" element={<RequireAuth><AdminDiscountsPage /></RequireAuth>} />
           <Route
             path="/admin/inventory"

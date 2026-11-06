@@ -1,3 +1,4 @@
+import { adminUsersRouter } from './routes/adminUsers.js';
 import { adminDiscountsRouter } from './routes/adminDiscounts.js';
 import { categoriesRouter, adminCategoriesRouter } from './routes/categories.js';
 import { categoryName } from './validation/category.js';
@@ -83,6 +84,7 @@ app.use('/api/admin/inventory', adminInventoryRouter);
 app.use('/api/admin/products', adminProductsRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/admin/categories', adminCategoriesRouter);
+app.use('/api/admin/users', adminUsersRouter);
 app.use('/api/admin/discounts', adminDiscountsRouter);
 
 app.get('/api/health', (_request, response) => {

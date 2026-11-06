@@ -147,6 +147,7 @@ function HeaderContent() {
           {authState.status === "authenticated" && authState.user.isAdmin && (
             <>
               <NavLink to="/admin/inventory" onClick={closeMenu}>Inventory</NavLink>
+              <NavLink to="/admin/users" onClick={closeMenu}>Users</NavLink>
               <NavLink to="/admin/discounts" onClick={closeMenu}>Discounts</NavLink>
             </>
           )}

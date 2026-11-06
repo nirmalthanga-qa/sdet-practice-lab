@@ -41,8 +41,10 @@ export default function CancelOrderButton({ orderId, onCancelled }: { orderId: s
         <button className="delete-product-button" type="button" disabled={busy || blocked}
           onClick={() => { void confirm(); }}>{busy ? 'Cancelling…' : error ? 'Retry cancellation' : 'Yes, cancel order'}</button>
       </div>
-      <p className="refresh-status" role="status">{busy ? 'Cancelling your order…' : ''}</p>
-      <p className="refresh-status field-error" role="alert">{error}</p>
+      <div className="feedback-slot">
+        <p className="refresh-status" role="status">{busy ? 'Cancelling your order…' : ''}</p>
+        <p className="refresh-status field-error" role="alert">{error}</p>
+      </div>
     </dialog>
   </>;
 }

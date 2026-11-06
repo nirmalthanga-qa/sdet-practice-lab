@@ -1,5 +1,5 @@
 main {
-  width: min(1600px, calc(100% - 40px));
+  width: min(1280px, calc(100% - 40px));
   margin-inline: auto;
 }
 
@@ -2231,9 +2231,9 @@ html {
   }
 }
 
-/* Allow footer links to scroll clear of the floating control. */
-.site-footer {
-  padding-bottom: 120px;
+/* Keep footer links clear of the floating button on narrow screens. */
+@media (max-width: 600px) {
+  .site-footer { padding-inline: 56px; }
 }
 
 /* Wishlist announcements do not occupy or resize the page layout. */
@@ -2299,9 +2299,24 @@ html {
   }
 }
 
-.product-details-content > .wishlist-button {
-  margin-right: 16px;
-  margin-bottom: 16px;
+.product-details-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.product-details-actions :is(.wishlist-button, .primary-link) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border: 1px solid;
+  border-radius: 8px;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.25;
 }
 
 /* Compact inventory tools without changing checkout or shop spacing. */
@@ -2342,3 +2357,92 @@ html {
 .admin-inventory-page .admin-product-fields .checkout-field { margin-bottom: 12px; }
 .admin-inventory-page .admin-product-fields .checkout-submit { margin-top: 16px; }
 .admin-inventory-page .csv-confirm-actions { gap: 12px; margin-top: 16px; }
+
+/* Size page content independently of the wide header and footer. */
+.order-history-list { max-width: 960px; }
+.order-chart { max-width: 760px; padding: 16px; }
+.shop-section[aria-labelledby="wishlist-title"] { max-width: 800px; }
+.wishlist-item::marker {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+.add-to-cart-button {
+  width: fit-content;
+  max-width: 100%;
+  justify-self: start;
+  min-height: 44px;
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.shop-section[aria-labelledby="product-details-title"] { max-width: 960px; }
+.tracks-section { max-width: 1080px; }
+nav.shop-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: clamp(4px, 2vw, 16px);
+}
+nav.shop-pagination button { margin: 0; }
+nav.shop-pagination button:first-child { justify-self: end; }
+nav.shop-pagination button:last-child { justify-self: start; }
+nav.shop-pagination p { margin: 0; min-width: 0; }
+.product-comparison { max-width: 1024px; }
+.product-comparison[data-product-count="1"] { max-width: 560px; }
+.product-comparison[data-product-count="2"] { max-width: 800px; }
+.product-comparison[data-product-count="1"] .comparison-table { min-width: min(100%, 24rem); }
+.cart-panel, .shop-section[aria-labelledby="cart-page-title"] { max-width: 880px; }
+.shop-section[aria-labelledby="checkout-title"] { max-width: 960px; }
+.shop-section[aria-labelledby="checkout-title"] .checkout-form { width: 100%; max-width: 560px; }
+
+/* Give the next action room after the cart quantity or payment note. */
+.product-cart-quantity + .product-details-actions,
+.product-cart-quantity + .wishlist-button {
+  margin-block-start: 20px;
+}
+
+.order-history-card > .field-help + .primary-link {
+  margin-block-start: 16px;
+}
+
+.admin-users { max-width: 1080px; }
+.admin-users .inventory-table td { overflow-wrap: anywhere; }
+
+/* A status and an error share one reserved line, and grow for longer messages. */
+.feedback-slot {
+  min-block-size: 1.5rem;
+  margin-block: 4px;
+}
+.feedback-slot > p:is([role="status"], [role="alert"]) {
+  min-height: 0;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Use the same vertical rhythm for admin headings, legends and form fields. */
+.shop-section[aria-labelledby="discounts-title"],
+.admin-users { padding-block: 32px 48px; }
+:is(.shop-section[aria-labelledby="discounts-title"], .admin-users) > h1 {
+  margin-block: 0 12px;
+}
+.shop-section[aria-labelledby="discounts-title"] > h1 + p { margin: 0 0 12px; }
+.shop-section[aria-labelledby="discounts-title"] > .clear-search-button { margin-top: 0; }
+.discount-create-form { margin-block: 12px 24px; gap: 12px; }
+.discount-create-form h2 { margin: 0; }
+.discount-create-form .admin-product-fields legend { margin-bottom: 8px; }
+.discount-create-form :is(.category-field, .checkout-field) { margin-block: 0 12px; }
+.discount-create-form .checkout-submit { margin-top: 12px; }
+
+/* Empty announcements in grid forms should not add a blank grid row. */
+:is(.auth-form, .checkout-form) > p:is([role="status"], [role="alert"]):empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}

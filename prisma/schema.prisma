@@ -93,7 +93,7 @@ enum PaymentStatus {
 
 model Order {
   id             String        @id @default(uuid())
-  userId         String
+  userId         String?
   checkoutId     String
   requestHash    String
 
@@ -117,7 +117,7 @@ model Order {
   createdAt      DateTime      @default(now())
   cancelledAt    DateTime?
 
-  user  User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user  User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
   items OrderItem[]
 
   @@unique([userId, checkoutId])
