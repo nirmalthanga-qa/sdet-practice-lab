@@ -6,7 +6,7 @@ export default function Footer() {
       <p className="developer-credit">
         Developed by{" "}
         <a
-          href="https://nirmal-pied.vercel.app"
+          href="https://nirmal-thanga.com/"
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Nirmal Kumar personal portfolio"
